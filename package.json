@@ -1,0 +1,16 @@
+{
+  "name": "fp-soldadura",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k -n backend,frontend \"npm run backend:dev\" \"npm run frontend:dev\"",
+    "db:init": "npm --prefix backend run db:init",
+    "backend:dev": "npm --prefix backend run dev",
+    "frontend:dev": "npm --prefix frontend run dev",
+    "frontend:build": "npm --prefix frontend run build",
+    "frontend:preview": "npm --prefix frontend run preview"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
