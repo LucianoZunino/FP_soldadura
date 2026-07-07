@@ -129,11 +129,16 @@ async function getDashboard(fechaInput) {
   const rows = await getProductionRows(fecha);
   const matrix = buildMatrix(rows);
   const totalsByShift = { 1: 0, 2: 0, 3: 0 };
+  const totalsProductosFinalesByShift = { 1: 0, 2: 0, 3: 0 };
   let totalProductosFinales = 0;
 
   for (const item of matrix) {
     if (item.cantidadArticulosFinales > 0) {
       totalProductosFinales += item.total;
+
+      for (const shift of SHIFTS) {
+        totalsProductosFinalesByShift[shift.id] += item.totalsByShift[shift.id];
+      }
     }
 
     for (const shift of SHIFTS) {
@@ -158,6 +163,7 @@ async function getDashboard(fechaInput) {
       piezas: new Set(matrix.map((item) => item.idPieza)).size,
       total: matrix.reduce((sum, item) => sum + item.total, 0),
       totalProductosFinales,
+      totalsProductosFinalesByShift,
       totalsByShift
     },
     rows: matrix

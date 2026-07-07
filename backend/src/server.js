@@ -3,6 +3,7 @@ const cors = require('cors');
 const { getEnv } = require('./config/env');
 const { importCsv } = require('./services/csvImporter');
 const { importArticleRelations } = require('./services/articleRelationImporter');
+const { syncLiveCsv } = require('./services/liveCsvSync');
 const { getCatalogs, getDashboard, getShift } = require('./services/productionService');
 const { todayIsoDate } = require('./utils/dates');
 
@@ -36,6 +37,14 @@ app.post('/api/import-articulos', async (req, res, next) => {
     });
 
     res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/live-sync', async (req, res, next) => {
+  try {
+    res.json(await syncLiveCsv());
   } catch (error) {
     next(error);
   }

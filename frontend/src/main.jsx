@@ -187,6 +187,38 @@ function HeaderTitle({ title, subtitle, sidebarCollapsed, onToggleSidebar }) {
   );
 }
 
+function DateQueryControl({ date, onDateChange }) {
+  const [draftDate, setDraftDate] = useState(date);
+
+  useEffect(() => {
+    setDraftDate(date);
+  }, [date]);
+
+  const applyDate = () => {
+    if (draftDate && draftDate !== date) {
+      onDateChange(draftDate);
+    }
+  };
+
+  return (
+    <>
+      <label className="dateInput">
+        <CalendarDays size={16} />
+        <input type="date" value={draftDate} onChange={(event) => setDraftDate(event.target.value)} />
+      </label>
+      <button
+        className="primaryButton secondaryButton"
+        disabled={!draftDate || draftDate === date}
+        onClick={applyDate}
+        type="button"
+      >
+        <Search size={16} />
+        Consultar
+      </button>
+    </>
+  );
+}
+
 function articleLabel(row) {
   if (!row.articulosFinales) {
     return '-';
@@ -357,10 +389,7 @@ function DashboardView({ dashboard, date, onDateChange, onImport, onImportArticl
       <header className="topbar">
         <HeaderTitle title="Produccion - Vista del dia" subtitle="Lectura del CSV en schema aislado" sidebarCollapsed={sidebarCollapsed} onToggleSidebar={onToggleSidebar} />
         <div className="toolbar">
-          <label className="dateInput">
-            <CalendarDays size={16} />
-            <input type="date" value={date} onChange={(event) => onDateChange(event.target.value)} />
-          </label>
+          <DateQueryControl date={date} onDateChange={onDateChange} />
           <button className="primaryButton" onClick={onImport} disabled={importing}>
             {importing ? <Loader2 className="spin" size={16} /> : <RefreshCcw size={16} />}
             Importar CSV
@@ -401,10 +430,7 @@ function ShiftView({ dashboard, date, onDateChange, shiftId, onShiftChange, side
               <option key={shift.id} value={shift.id}>{shift.label} ({shift.description})</option>
             ))}
           </select>
-          <label className="dateInput">
-            <CalendarDays size={16} />
-            <input type="date" value={date} onChange={(event) => onDateChange(event.target.value)} />
-          </label>
+          <DateQueryControl date={date} onDateChange={onDateChange} />
         </div>
       </header>
 
@@ -424,14 +450,17 @@ function HistoryView({ dashboard, date, onDateChange, sidebarCollapsed, onToggle
     <main className="content narrow">
       <header className="topbar">
         <HeaderTitle title="Historial de produccion" subtitle={formatDate(date)} sidebarCollapsed={sidebarCollapsed} onToggleSidebar={onToggleSidebar} />
-        <label className="dateInput">
-          <CalendarDays size={16} />
-          <input type="date" value={date} onChange={(event) => onDateChange(event.target.value)} />
-        </label>
+        <div className="toolbar">
+          <DateQueryControl date={date} onDateChange={onDateChange} />
+        </div>
       </header>
 
       <section className="statsGrid">
-        <StatCard icon={Gauge} label="Produccion total" value={dashboard.summary.total.toLocaleString('es-AR')} />
+        <StatCard
+          icon={Gauge}
+          label="Produccion total de productos finales"
+          value={(dashboard.summary.totalProductosFinales || 0).toLocaleString('es-AR')}
+        />
         <StatCard icon={Grid3X3} label="Celdas" value={dashboard.summary.celdas} />
         <StatCard icon={ClipboardList} label="Piezas" value={dashboard.summary.piezas} />
       </section>
@@ -439,7 +468,10 @@ function HistoryView({ dashboard, date, onDateChange, sidebarCollapsed, onToggle
       <div className="accordionList">
         {dashboard.shifts.map((shift) => (
           <details className="shiftPanel" key={shift.id} open={shift.id === 1}>
-            <summary>{shift.label} ({shift.description}) <strong>{dashboard.summary.totalsByShift[shift.id] || 0}</strong></summary>
+            <summary>
+              {shift.label} ({shift.description})
+              <strong>{dashboard.summary.totalsProductosFinalesByShift?.[shift.id] || 0}</strong>
+            </summary>
             <ProductionTable dashboard={dashboard} shiftId={shift.id} compact />
           </details>
         ))}
@@ -477,10 +509,7 @@ function DetailView({ dashboard, date, onDateChange, sidebarCollapsed, onToggleS
             <option value="">Todas las piezas</option>
             {pieces.map((item) => <option key={item} value={item}>{item}</option>)}
           </select>
-          <label className="dateInput">
-            <CalendarDays size={16} />
-            <input type="date" value={date} onChange={(event) => onDateChange(event.target.value)} />
-          </label>
+          <DateQueryControl date={date} onDateChange={onDateChange} />
         </div>
       </header>
 
@@ -537,9 +566,15 @@ function App() {
   const [importingArticles, setImportingArticles] = useState(false);
   const [error, setError] = useState('');
   const [lastUpdate, setLastUpdate] = useState('');
-  async function loadDashboard(dateValue = selectedDate) {
-    setLoading(true);
-    setError('');
+  const liveSyncingRef = React.useRef(false);
+
+  async function loadDashboard(dateValue = selectedDate, options = {}) {
+    if (!options.silent) {
+      setLoading(true);
+    }
+    if (!options.keepError) {
+      setError('');
+    }
 
     try {
       const data = await fetchJson(`/api/dashboard?fecha=${dateValue}`);
@@ -548,7 +583,30 @@ function App() {
     } catch (loadError) {
       setError(loadError.message);
     } finally {
-      setLoading(false);
+      if (!options.silent) {
+        setLoading(false);
+      }
+    }
+  }
+
+  async function syncLiveDashboard() {
+    if (liveSyncingRef.current) {
+      return;
+    }
+
+    liveSyncingRef.current = true;
+
+    try {
+      const result = await fetchJson('/api/live-sync', {
+        method: 'POST',
+        body: JSON.stringify({})
+      });
+
+      await loadDashboard(result.fecha || selectedDate, { silent: true, keepError: true });
+    } catch (syncError) {
+      setError(syncError.message);
+    } finally {
+      liveSyncingRef.current = false;
     }
   }
 
@@ -557,11 +615,16 @@ function App() {
     setError('');
 
     try {
-      await fetchJson('/api/import', {
+      const result = await fetchJson('/api/import', {
         method: 'POST',
         body: JSON.stringify({ fecha: selectedDate })
       });
-      await loadDashboard(selectedDate);
+
+      if (result.fecha !== selectedDate) {
+        setSelectedDate(result.fecha);
+      } else {
+        await loadDashboard(result.fecha);
+      }
     } catch (importError) {
       setError(importError.message);
     } finally {
@@ -589,6 +652,19 @@ function App() {
   useEffect(() => {
     loadDashboard(selectedDate);
   }, [selectedDate]);
+
+  useEffect(() => {
+    if (activeView !== 'dashboard' || selectedDate !== today()) {
+      return undefined;
+    }
+
+    syncLiveDashboard();
+    const intervalId = window.setInterval(syncLiveDashboard, 10000);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [activeView, selectedDate]);
 
   const content = useMemo(() => {
     if (loading) {

@@ -1,0 +1,91 @@
+@startuml
+title FP_Soldadura - Flujo operativo de datos
+
+actor Operador
+participant "Dashboard React/Vite" as Frontend
+participant "API Express" as API
+participant "Live Sync Service" as LiveSync
+participant "CSV Importer" as Importer
+database "MySQL\nferrosider_produccion_soldadura" as DB
+participant "CSV historico\nCSV_PATH" as CsvManual
+participant "CSV vivo del dia\nLIVE_CSV_PATH" as CsvLive
+participant "Excel articulos\nARTICLES_XLSX_PATH" as Excel
+
+Operador -> Frontend : Abre Dashboard
+activate Frontend
+Frontend -> API : GET /api/dashboard?fecha=hoy
+activate API
+API -> DB : Consulta produccion, celdas, piezas y articulos finales
+activate DB
+DB --> API : Datos agregados por fecha, turno y hora
+deactivate DB
+API --> Frontend : Dashboard inicial
+deactivate API
+
+loop Cada 10 segundos si fecha = hoy
+  Frontend -> API : POST /api/live-sync
+  activate API
+  API -> LiveSync : syncLiveCsv()
+  activate LiveSync
+
+  alt Sincronizacion reciente o en curso
+    LiveSync --> API : Reutiliza ultimo resultado o ejecucion activa
+  else Sincronizacion permitida
+    LiveSync -> CsvLive : Verifica estabilidad y lee archivo
+    CsvLive --> LiveSync : CSV actual del dia
+    LiveSync -> Importer : importCsv(fecha=hoy, stableRead=true)
+    activate Importer
+    Importer -> DB : Upsert celda, pieza y produccion_hora
+    activate DB
+    DB --> Importer : Datos actualizados
+    deactivate DB
+    Importer --> LiveSync : Resumen de importacion
+    deactivate Importer
+    LiveSync --> API : Resultado live-sync
+  end
+
+  deactivate LiveSync
+  API --> Frontend : Estado de sincronizacion
+  deactivate API
+
+  Frontend -> API : GET /api/dashboard?fecha=hoy
+  activate API
+  API -> DB : Consulta datos actualizados
+  activate DB
+  DB --> API : Matriz y totales actualizados
+  deactivate DB
+  API --> Frontend : Dashboard actualizado
+  deactivate API
+end
+
+Operador -> Frontend : Importar CSV manual
+Frontend -> API : POST /api/import
+activate API
+API -> CsvManual : Lee CSV_PATH
+CsvManual --> API : CSV historico o manual
+API -> Importer : importCsv(fecha seleccionada)
+activate Importer
+Importer -> DB : Upsert produccion_hora
+DB --> Importer : OK
+Importer --> API : Resumen importacion
+deactivate Importer
+API --> Frontend : Resultado importacion
+deactivate API
+
+Operador -> Frontend : Importar articulos
+Frontend -> API : POST /api/import-articulos
+activate API
+API -> Excel : Lee Excel de articulos/componentes
+Excel --> API : Relaciones articulo final - componente
+API -> DB : Reconstruye articulo_final, pieza_articulo_final y celda_pieza_articulo_final
+DB --> API : Relaciones actualizadas
+API --> Frontend : Resultado importacion
+deactivate API
+
+Frontend -> API : GET /api/turno | /api/catalogos
+API -> DB : Consultas auxiliares
+DB --> API : Datos filtrados
+API --> Frontend : Vistas Produccion, Historial, Detalle, Exportar
+
+deactivate Frontend
+@enduml

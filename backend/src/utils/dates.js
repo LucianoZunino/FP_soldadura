@@ -15,7 +15,16 @@ function normalizeDate(value) {
   return date;
 }
 
+function previousIsoDate(value = todayIsoDate()) {
+  const date = normalizeDate(value);
+  const [year, month, day] = date.split('-').map(Number);
+  const previous = new Date(Date.UTC(year, month - 1, day - 1));
+
+  return previous.toISOString().slice(0, 10);
+}
+
 module.exports = {
   normalizeDate,
+  previousIsoDate,
   todayIsoDate
 };

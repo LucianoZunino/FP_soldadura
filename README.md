@@ -28,7 +28,6 @@ Sistema de captura, importacion y visualizacion de produccion horaria para solda
 ## Notas operativas
 
 - El backend usa `CSV_PATH` para ubicar el archivo de importacion.
-- El backend puede usar `ARTICLES_XLSX_PATH` para importar la relacion articulo final <-> componente desde Excel.
 - El frontend apunta por defecto a `http://localhost:3001`.
 - Los cambios funcionales deberian reflejarse en `docs/CHANGELOG.md` y, si salen a uso real, tambien en `docs/DEPLOY_LOG.md`.
 

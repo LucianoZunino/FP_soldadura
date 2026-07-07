@@ -1,9 +1,10 @@
 const fs = require('fs/promises');
+const path = require('path');
 const { parse } = require('csv-parse/sync');
 const { createPool } = require('../config/db');
 const { requireEnv } = require('../config/env');
 const { SHIFTS } = require('../constants/production');
-const { normalizeDate } = require('../utils/dates');
+const { normalizeDate, previousIsoDate } = require('../utils/dates');
 
 async function readCsvContent(csvPath) {
   try {
@@ -20,10 +21,47 @@ async function readCsvContent(csvPath) {
   }
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function readStableCsvContent(csvPath) {
+  let previousStat = null;
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const currentStat = await fs.stat(csvPath);
+
+    if (
+      previousStat &&
+      previousStat.size === currentStat.size &&
+      previousStat.mtimeMs === currentStat.mtimeMs
+    ) {
+      return readCsvContent(csvPath);
+    }
+
+    previousStat = currentStat;
+    await sleep(300);
+  }
+
+  return readCsvContent(csvPath);
+}
+
 function parseAmount(value) {
   const parsed = Number.parseInt(String(value || '').trim(), 10);
 
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function resolveImportDate(csvPath, requestedDate) {
+  const filename = path.basename(csvPath).toLocaleLowerCase('es');
+
+  if (/(^|[_\-\s])ayer([_.\-\s]|$)/.test(filename)) {
+    return previousIsoDate();
+  }
+
+  return normalizeDate(requestedDate);
 }
 
 async function getOrCreateCelda(connection, nombre) {
@@ -76,9 +114,11 @@ async function upsertProduction(connection, record) {
 }
 
 async function importCsv(options = {}) {
-  const fecha = normalizeDate(options.fecha);
   const csvPath = options.csvPath || requireEnv('CSV_PATH');
-  const content = await readCsvContent(csvPath);
+  const fecha = resolveImportDate(csvPath, options.fecha);
+  const content = options.stableRead
+    ? await readStableCsvContent(csvPath)
+    : await readCsvContent(csvPath);
   const rows = parse(content, {
     bom: true,
     relaxColumnCount: true,
@@ -144,5 +184,6 @@ async function importCsv(options = {}) {
 }
 
 module.exports = {
-  importCsv
+  importCsv,
+  resolveImportDate
 };
