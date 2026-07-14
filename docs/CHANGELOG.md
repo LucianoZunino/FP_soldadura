@@ -1,5 +1,14 @@
 # CHANGELOG - FP_Soldadura
 
+## 2026-07-13
+
+- Se corrige la convivencia entre `POST /api/import` y `POST /api/live-sync` para la fecha actual: el modo vivo deja de pisar una importacion manual si `LIVE_CSV_PATH` tiene una fecha de modificacion anterior al archivo importado manualmente.
+- La respuesta de importacion ahora incluye metadatos de frescura del archivo fuente (`sourceMtime`, `sourceMtimeMs`, `sourceSizeBytes`) para diagnosticar por que una fuente reemplaza o no reemplaza a otra.
+- Se optimiza la importacion CSV con upserts por lote para que `POST /api/live-sync` pueda completar dentro de la ventana de refresco configurada.
+- El modo vivo toma varias muestras del CSV y preserva valores positivos existentes cuando una lectura transitoria trae cero, evitando que la pantalla retroceda mientras el archivo compartido se esta actualizando.
+- El boton principal del Dashboard usa `POST /api/live-sync` cuando la fecha seleccionada es el dia actual, evitando que intente leer el `CSV_PATH` historico `_ayer`.
+- `POST /api/import` tambien redirige internamente a la sincronizacion viva cuando se pide la fecha actual sin `csvPath` explicito, para cubrir navegadores con bundle viejo o llamados externos.
+
 ## 2026-07-02
 
 - Se agrega sincronizacion automatica del Dashboard contra el CSV vivo del dia actual configurado en `LIVE_CSV_PATH`.

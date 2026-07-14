@@ -126,8 +126,10 @@ Relaciones funcionales:
 2. El backend lee `LIVE_CSV_PATH` como fuente de verdad del dia actual.
 3. Antes de leer, el backend espera una ventana corta de estabilidad del archivo para reducir el riesgo de tomarlo mientras esta siendo escrito.
 4. La importacion usa la fecha calendario actual y mantiene la logica existente de turnos, incluyendo Turno 3 bajo la misma fecha operativa del dia.
-5. La escritura es por upsert: valores nuevos reemplazan valores previos, incluyendo ceros.
-6. Si hay una sincronizacion en curso o una sincronizacion reciente dentro de la ventana configurada, el backend reutiliza o devuelve el ultimo resultado para evitar escrituras concurrentes innecesarias.
+5. Para el modo vivo, el backend toma varias muestras del CSV y fusiona lecturas para evitar ceros transitorios durante la escritura del archivo compartido.
+6. Si el usuario hizo una importacion manual del dia actual y el archivo `LIVE_CSV_PATH` tiene una fecha de modificacion mas vieja que esa fuente manual, el modo vivo no pisa la base y devuelve un resultado omitido para preservar la informacion mas actual.
+7. La escritura es por upsert por lote. En importaciones manuales, los valores nuevos reemplazan valores previos, incluyendo ceros. En sincronizacion viva, un cero entrante no pisa un valor positivo ya existente.
+8. Si hay una sincronizacion en curso o una sincronizacion reciente dentro de la ventana configurada, el backend reutiliza o devuelve el ultimo resultado para evitar escrituras concurrentes innecesarias.
 
 ### Importacion de articulos finales
 

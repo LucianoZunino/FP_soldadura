@@ -1,9 +1,10 @@
 const { getEnv, requireEnv } = require('../config/env');
 const { todayIsoDate } = require('../utils/dates');
-const { importCsv } = require('./csvImporter');
+const { getCsvSourceInfo, importCsv } = require('./csvImporter');
 
 let inFlightSync = null;
 let lastSync = null;
+let lastManualImport = null;
 
 function liveRefreshMs() {
   const seconds = Number.parseInt(getEnv('LIVE_REFRESH_SECONDS', '10'), 10);
@@ -15,10 +16,34 @@ function liveRefreshMs() {
 async function runLiveCsvSync() {
   const csvPath = requireEnv('LIVE_CSV_PATH');
   const startedAt = new Date();
+  const sourceInfo = await getCsvSourceInfo(csvPath);
+
+  if (
+    lastManualImport &&
+    lastManualImport.fecha === todayIsoDate() &&
+    sourceInfo.sourceMtimeMs <= lastManualImport.sourceMtimeMs
+  ) {
+    return {
+      fecha: todayIsoDate(),
+      csvPath,
+      ...sourceInfo,
+      live: true,
+      skipped: true,
+      reason: 'live-source-older-than-manual-import',
+      manualImportSourceMtime: lastManualImport.sourceMtime,
+      manualImportSourceMtimeMs: lastManualImport.sourceMtimeMs,
+      syncedAt: new Date().toISOString(),
+      durationMs: Date.now() - startedAt.getTime()
+    };
+  }
+
   const result = await importCsv({
     csvPath,
     fecha: todayIsoDate(),
-    stableRead: true
+    stableRead: true,
+    sampleCount: 3,
+    sampleDelayMs: 1000,
+    preserveExistingPositiveOnZero: true
   });
 
   return {
@@ -67,6 +92,19 @@ async function syncLiveCsv() {
   }
 }
 
+function registerManualImport(result) {
+  if (!result || result.live || result.fecha !== todayIsoDate()) {
+    return;
+  }
+
+  lastManualImport = {
+    fecha: result.fecha,
+    sourceMtime: result.sourceMtime,
+    sourceMtimeMs: result.sourceMtimeMs
+  };
+}
+
 module.exports = {
+  registerManualImport,
   syncLiveCsv
 };

@@ -3,9 +3,9 @@ const cors = require('cors');
 const { getEnv } = require('./config/env');
 const { importCsv } = require('./services/csvImporter');
 const { importArticleRelations } = require('./services/articleRelationImporter');
-const { syncLiveCsv } = require('./services/liveCsvSync');
+const { registerManualImport, syncLiveCsv } = require('./services/liveCsvSync');
 const { getCatalogs, getDashboard, getShift } = require('./services/productionService');
-const { todayIsoDate } = require('./utils/dates');
+const { normalizeDate, todayIsoDate } = require('./utils/dates');
 
 const app = express();
 const port = Number(getEnv('PORT', 3001));
@@ -19,10 +19,19 @@ app.get('/api/health', (req, res) => {
 
 app.post('/api/import', async (req, res, next) => {
   try {
+    const requestedDate = normalizeDate(req.body?.fecha || req.query.fecha);
+    const csvPath = req.body?.csvPath;
+
+    if (!csvPath && requestedDate === todayIsoDate()) {
+      res.json(await syncLiveCsv());
+      return;
+    }
+
     const result = await importCsv({
-      fecha: req.body?.fecha || req.query.fecha,
-      csvPath: req.body?.csvPath
+      fecha: requestedDate,
+      csvPath
     });
+    registerManualImport(result);
 
     res.json(result);
   } catch (error) {

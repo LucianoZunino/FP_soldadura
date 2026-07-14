@@ -7,6 +7,7 @@
 - [CONTEXTO_PROYECTO.md](/C:/Users/lzunino/Desktop/FP_Soldadura/docs/CONTEXTO_PROYECTO.md): vision funcional y tecnica del sistema.
 - [CHANGELOG.md](/C:/Users/lzunino/Desktop/FP_Soldadura/docs/CHANGELOG.md): cambios funcionales del proyecto.
 - [DEPLOY_LOG.md](/C:/Users/lzunino/Desktop/FP_Soldadura/docs/DEPLOY_LOG.md): cambios llevados o listos para llevar a uso operativo.
+- [ANALISIS_LKN_PRODUCCION_HORARIA.md](/C:/Users/lzunino/Desktop/FP_Soldadura/docs/ANALISIS_LKN_PRODUCCION_HORARIA.md): relevamiento de `lkn_soft.produccion_horaria` como reemplazo potencial del CSV vivo.
 - [FP_Soldadura_Flujo_operativo_datos.png](/C:/Users/lzunino/Desktop/FP_Soldadura/docs/FP_Soldadura_Flujo_operativo_datos.png): imagen del flujo operativo del proyecto.
 - [FP_Soldadura_Flujo_operativo_datos.puml](/C:/Users/lzunino/Desktop/FP_Soldadura/docs/FP_Soldadura_Flujo_operativo_datos.puml): fuente editable PlantUML del diagrama de flujo operativo.
 

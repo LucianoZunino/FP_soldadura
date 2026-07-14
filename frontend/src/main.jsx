@@ -384,6 +384,8 @@ function ProductionTable({ dashboard, shiftId = null, compact = false, stickyBot
 }
 
 function DashboardView({ dashboard, date, onDateChange, onImport, onImportArticles, importing, importingArticles, sidebarCollapsed, onToggleSidebar }) {
+  const isToday = date === today();
+
   return (
     <main className="content">
       <header className="topbar">
@@ -392,7 +394,7 @@ function DashboardView({ dashboard, date, onDateChange, onImport, onImportArticl
           <DateQueryControl date={date} onDateChange={onDateChange} />
           <button className="primaryButton" onClick={onImport} disabled={importing}>
             {importing ? <Loader2 className="spin" size={16} /> : <RefreshCcw size={16} />}
-            Importar CSV
+            {isToday ? 'Actualizar vivo' : 'Importar CSV'}
           </button>
           <button className="primaryButton secondaryButton" onClick={onImportArticles} disabled={importingArticles}>
             {importingArticles ? <Loader2 className="spin" size={16} /> : <Database size={16} />}
@@ -615,9 +617,10 @@ function App() {
     setError('');
 
     try {
-      const result = await fetchJson('/api/import', {
+      const isToday = selectedDate === today();
+      const result = await fetchJson(isToday ? '/api/live-sync' : '/api/import', {
         method: 'POST',
-        body: JSON.stringify({ fecha: selectedDate })
+        body: JSON.stringify(isToday ? {} : { fecha: selectedDate })
       });
 
       if (result.fecha !== selectedDate) {
