@@ -3,7 +3,13 @@ const cors = require('cors');
 const { getEnv } = require('./config/env');
 const { importCsv } = require('./services/csvImporter');
 const { importArticleRelations } = require('./services/articleRelationImporter');
-const { registerManualImport, syncLiveCsv } = require('./services/liveCsvSync');
+const {
+  getLknMachineMappings,
+  importLknProduction,
+  seedLknMachineMappings,
+  upsertLknMachineMapping
+} = require('./services/lknImporter');
+const { getLknAutoSyncStatus, runLknAutoSync, startLknAutoSync } = require('./services/lknAutoSync');
 const { getCatalogs, getDashboard, getShift } = require('./services/productionService');
 const { normalizeDate, todayIsoDate } = require('./utils/dates');
 
@@ -23,7 +29,7 @@ app.post('/api/import', async (req, res, next) => {
     const csvPath = req.body?.csvPath;
 
     if (!csvPath && requestedDate === todayIsoDate()) {
-      res.json(await syncLiveCsv());
+      res.json(await runLknAutoSync({ fecha: requestedDate }));
       return;
     }
 
@@ -31,7 +37,6 @@ app.post('/api/import', async (req, res, next) => {
       fecha: requestedDate,
       csvPath
     });
-    registerManualImport(result);
 
     res.json(result);
   } catch (error) {
@@ -51,9 +56,70 @@ app.post('/api/import-articulos', async (req, res, next) => {
   }
 });
 
+app.post('/api/import-lkn', async (req, res, next) => {
+  try {
+    res.json(await importLknProduction({
+      fecha: req.body?.fecha || req.query.fecha,
+      replaceDate: req.body?.replaceDate !== false,
+      skipFutureHours: req.body?.skipFutureHours !== false
+    }));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/lkn-mappings/seed', async (req, res, next) => {
+  try {
+    res.json(await seedLknMachineMappings({
+      fecha: req.body?.fecha || req.query.fecha,
+      fechaDesde: req.body?.fechaDesde || req.query.fechaDesde
+    }));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/lkn-mappings', async (req, res, next) => {
+  try {
+    res.json(await getLknMachineMappings({
+      maquina: req.query.maquina
+    }));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.post('/api/lkn-mappings', async (req, res, next) => {
+  try {
+    res.json(await upsertLknMachineMapping(req.body || {}));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/lkn-sync/status', (req, res) => {
+  res.json(getLknAutoSyncStatus());
+});
+
+app.post('/api/lkn-sync/run', async (req, res, next) => {
+  try {
+    res.json(await runLknAutoSync({
+      fecha: req.body?.fecha || req.query.fecha,
+      replaceDate: req.body?.replaceDate !== false,
+      skipFutureHours: req.body?.skipFutureHours !== false
+    }));
+  } catch (error) {
+    next(error);
+  }
+});
+
 app.post('/api/live-sync', async (req, res, next) => {
   try {
-    res.json(await syncLiveCsv());
+    res.json(await runLknAutoSync({
+      fecha: req.body?.fecha || req.query.fecha,
+      replaceDate: req.body?.replaceDate !== false,
+      skipFutureHours: req.body?.skipFutureHours !== false
+    }));
   } catch (error) {
     next(error);
   }
@@ -96,4 +162,7 @@ app.use((error, req, res, next) => {
 
 app.listen(port, () => {
   console.log(`Backend listening on http://localhost:${port}`);
+  if (startLknAutoSync()) {
+    console.log(`LKN auto-sync enabled every ${getLknAutoSyncStatus().intervalSeconds}s`);
+  }
 });

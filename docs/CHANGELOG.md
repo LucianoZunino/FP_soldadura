@@ -5,6 +5,15 @@
 - Se corrige la vista del dia actual para que no muestre ni sume produccion de franjas horarias futuras, aunque existan valores adelantados en `produccion_hora`.
 - La sincronizacion viva (`POST /api/live-sync`) deja de importar buckets horarios futuros y limpia a cero valores futuros ya persistidos para el dia actual.
 - El calculo de dia/hora operativa del backend queda fijado por defecto a `America/Argentina/Buenos_Aires`, configurable con `APP_TIME_ZONE`, evitando errores si el proceso corre con zona horaria UTC.
+- La sincronizacion viva conserva el mayor valor observado por celda/pieza/hora, evitando saltos hacia abajo cuando el CSV alterna snapshots o trae lecturas parciales.
+- Se reemplaza la sincronizacion automatica desde el frontend por un refresco visual de solo lectura (`VITE_AUTO_DASHBOARD_REFRESH`), evitando que un navegador escriba en base cada 10 segundos.
+- Se crea la DB `ferrosider_produccion_soldadura_test` para uso local, con estructura y catalogos copiados desde produccion pero sin historico de `produccion_hora`.
+- Se agrega importador desde `lkn_soft.produccion_horaria` hacia `produccion_hora` mediante `POST /api/import-lkn`, manteniendo el frontend desacoplado de la fuente origen.
+- Se rellena `ferrosider_produccion_soldadura_test` para `2026-07-16` desde LKN: 1488 filas origen, 62 maquinas mapeadas, 806 filas importadas y 682 franjas futuras omitidas.
+- Se agrega scheduler backend opcional para refrescar automaticamente `produccion_hora` desde LKN (`LKN_AUTO_SYNC_ENABLED`, `LKN_SYNC_SECONDS`) y endpoints de estado/ejecucion (`GET /api/lkn-sync/status`, `POST /api/lkn-sync/run`).
+- El frontend refresca la vista del dia actual leyendo `/api/dashboard` cada 10 segundos; la escritura automatica queda a cargo del scheduler backend.
+- Se agrega `maquina_pieza_mapeo` con vigencia temporal para resolver cambios de pieza por maquina sin reinterpretar historicos; incluye endpoints `GET/POST /api/lkn-mappings` y seed automatico desde LKN.
+- `POST /api/live-sync` y `POST /api/import` para la fecha actual pasan a usar LKN como fuente viva; el CSV queda limitado a importaciones historicas/manuales.
 
 ## 2026-07-13
 

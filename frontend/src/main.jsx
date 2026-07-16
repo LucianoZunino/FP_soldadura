@@ -20,6 +20,7 @@ import './styles.css';
 import grupoRbLogo from './assets/grupo-reb-logo.png';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3001';
+const AUTO_DASHBOARD_REFRESH = import.meta.env.VITE_AUTO_DASHBOARD_REFRESH !== 'false';
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: Grid3X3 },
@@ -568,8 +569,6 @@ function App() {
   const [importingArticles, setImportingArticles] = useState(false);
   const [error, setError] = useState('');
   const [lastUpdate, setLastUpdate] = useState('');
-  const liveSyncingRef = React.useRef(false);
-
   async function loadDashboard(dateValue = selectedDate, options = {}) {
     if (!options.silent) {
       setLoading(true);
@@ -588,27 +587,6 @@ function App() {
       if (!options.silent) {
         setLoading(false);
       }
-    }
-  }
-
-  async function syncLiveDashboard() {
-    if (liveSyncingRef.current) {
-      return;
-    }
-
-    liveSyncingRef.current = true;
-
-    try {
-      const result = await fetchJson('/api/live-sync', {
-        method: 'POST',
-        body: JSON.stringify({})
-      });
-
-      await loadDashboard(result.fecha || selectedDate, { silent: true, keepError: true });
-    } catch (syncError) {
-      setError(syncError.message);
-    } finally {
-      liveSyncingRef.current = false;
     }
   }
 
@@ -657,12 +635,13 @@ function App() {
   }, [selectedDate]);
 
   useEffect(() => {
-    if (activeView !== 'dashboard' || selectedDate !== today()) {
+    if (!AUTO_DASHBOARD_REFRESH || activeView !== 'dashboard' || selectedDate !== today()) {
       return undefined;
     }
 
-    syncLiveDashboard();
-    const intervalId = window.setInterval(syncLiveDashboard, 10000);
+    const intervalId = window.setInterval(() => {
+      loadDashboard(selectedDate, { silent: true, keepError: true });
+    }, 10000);
 
     return () => {
       window.clearInterval(intervalId);

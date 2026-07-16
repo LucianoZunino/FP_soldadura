@@ -4,11 +4,12 @@ title FP_Soldadura - Flujo operativo de datos
 actor Operador
 participant "Dashboard React/Vite" as Frontend
 participant "API Express" as API
-participant "Live Sync Service" as LiveSync
+participant "LKN Auto Sync" as LknSync
+participant "LKN Importer" as LknImporter
 participant "CSV Importer" as Importer
 database "MySQL\nferrosider_produccion_soldadura" as DB
+database "lkn_soft\nproduccion_horaria" as Lkn
 participant "CSV historico\nCSV_PATH" as CsvManual
-participant "CSV vivo del dia\nLIVE_CSV_PATH" as CsvLive
 participant "Excel articulos\nARTICLES_XLSX_PATH" as Excel
 
 Operador -> Frontend : Abre Dashboard
@@ -22,32 +23,19 @@ deactivate DB
 API --> Frontend : Dashboard inicial
 deactivate API
 
+loop Cada LKN_SYNC_SECONDS si LKN_AUTO_SYNC_ENABLED=true
+  LknSync -> LknImporter : importLknProduction(fecha=hoy)
+  activate LknImporter
+  LknImporter -> Lkn : Lee produccion_horaria
+  Lkn --> LknImporter : Produccion por maquina/hora
+  LknImporter -> DB : Consulta maquina_pieza_mapeo vigente
+  DB --> LknImporter : celda + pieza por maquina
+  LknImporter -> DB : Reemplaza produccion_hora del dia
+  DB --> LknImporter : Datos actualizados
+  deactivate LknImporter
+end
+
 loop Cada 10 segundos si fecha = hoy
-  Frontend -> API : POST /api/live-sync
-  activate API
-  API -> LiveSync : syncLiveCsv()
-  activate LiveSync
-
-  alt Sincronizacion reciente o en curso
-    LiveSync --> API : Reutiliza ultimo resultado o ejecucion activa
-  else Sincronizacion permitida
-    LiveSync -> CsvLive : Verifica estabilidad y lee archivo
-    CsvLive --> LiveSync : CSV actual del dia
-    LiveSync -> Importer : importCsv(fecha=hoy, stableRead=true)
-    activate Importer
-    Importer -> DB : Upsert celda, pieza y produccion_hora
-    activate DB
-    DB --> Importer : Datos actualizados
-    deactivate DB
-    Importer --> LiveSync : Resumen de importacion
-    deactivate Importer
-    LiveSync --> API : Resultado live-sync
-  end
-
-  deactivate LiveSync
-  API --> Frontend : Estado de sincronizacion
-  deactivate API
-
   Frontend -> API : GET /api/dashboard?fecha=hoy
   activate API
   API -> DB : Consulta datos actualizados
@@ -57,6 +45,16 @@ loop Cada 10 segundos si fecha = hoy
   API --> Frontend : Dashboard actualizado
   deactivate API
 end
+
+Operador -> Frontend : Actualizar vivo manual
+Frontend -> API : POST /api/live-sync
+activate API
+API -> LknSync : runLknAutoSync()
+LknSync -> LknImporter : importLknProduction(fecha=hoy)
+LknImporter -> Lkn : Lee produccion_horaria
+LknImporter -> DB : Actualiza produccion_hora
+API --> Frontend : Resultado sync LKN
+deactivate API
 
 Operador -> Frontend : Importar CSV manual
 Frontend -> API : POST /api/import

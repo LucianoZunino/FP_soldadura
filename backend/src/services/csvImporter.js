@@ -294,7 +294,9 @@ async function upsertProductionBatch(connection, records, options = {}) {
     return;
   }
 
-  const updateAmountSql = options.preserveExistingPositiveOnZero
+  const updateAmountSql = options.preserveExistingHigher
+    ? 'cantidad = GREATEST(produccion_hora.cantidad, VALUES(cantidad))'
+    : options.preserveExistingPositiveOnZero
     ? `cantidad = CASE
         WHEN VALUES(cantidad) = 0 AND produccion_hora.cantidad > 0 THEN produccion_hora.cantidad
         ELSE VALUES(cantidad)

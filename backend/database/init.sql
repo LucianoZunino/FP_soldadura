@@ -53,6 +53,39 @@ CREATE TABLE IF NOT EXISTS celda_pieza_articulo_final (
     INDEX idx_celda_pieza_articulo_final_lookup (id_celda, id_pieza)
 );
 
+CREATE TABLE IF NOT EXISTS maquina_pieza_mapeo (
+    id_mapeo BIGINT AUTO_INCREMENT PRIMARY KEY,
+    maquina_origen VARCHAR(120) NOT NULL,
+    id_celda INT NOT NULL,
+    id_pieza INT NOT NULL,
+    fecha_desde DATE NOT NULL,
+    fecha_hasta DATE NULL,
+    activo TINYINT(1) NOT NULL DEFAULT 1,
+    prioridad INT NOT NULL DEFAULT 100,
+    fuente VARCHAR(50) NOT NULL DEFAULT 'manual',
+    notas VARCHAR(255) NULL,
+    creado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    actualizado_en DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ON UPDATE CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (id_celda) REFERENCES celda(id_celda),
+    FOREIGN KEY (id_pieza) REFERENCES pieza(id_pieza),
+    UNIQUE KEY uq_maquina_pieza_mapeo (
+        maquina_origen,
+        id_celda,
+        id_pieza,
+        fecha_desde
+    ),
+    INDEX idx_maquina_pieza_mapeo_lookup (
+        maquina_origen,
+        activo,
+        fecha_desde,
+        fecha_hasta,
+        prioridad
+    ),
+    INDEX idx_maquina_pieza_mapeo_destino (id_celda, id_pieza)
+);
+
 CREATE TABLE IF NOT EXISTS turno (
     id_turno TINYINT PRIMARY KEY,
     descripcion VARCHAR(50) NOT NULL,

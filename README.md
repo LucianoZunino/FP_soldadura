@@ -17,6 +17,56 @@ Sistema de captura, importacion y visualizacion de produccion horaria para solda
 3. Inicializar la base con `npm run db:init`.
 4. Levantar el proyecto con `npm run dev`.
 
+## Base local de test
+
+El backend carga primero `.env` de la raiz y despues `backend/.env` con prioridad. Para desarrollo local se puede usar `backend/.env` para apuntar a una base aislada, por ejemplo:
+
+```env
+DB_NAME=ferrosider_produccion_soldadura_test
+```
+
+Esta configuracion evita que las pruebas locales escriban sobre la tabla productiva. El frontend local puede activar o desactivar el refresco visual del dashboard con `frontend/.env.development.local`:
+
+```env
+VITE_AUTO_DASHBOARD_REFRESH=true
+```
+
+La fuente viva recomendada es `lkn_soft.produccion_horaria`. Para rellenar la base desde LKN se puede usar:
+
+```bash
+curl -X POST http://localhost:3001/api/import-lkn \
+  -H "Content-Type: application/json" \
+  -d "{\"fecha\":\"YYYY-MM-DD\",\"replaceDate\":true}"
+```
+
+Para actualizarla automaticamente desde el backend:
+
+```env
+LKN_AUTO_SYNC_ENABLED=true
+LKN_SYNC_SECONDS=15
+LKN_DB_NAME=lkn_soft
+```
+
+Estado del scheduler:
+
+```bash
+curl http://localhost:3001/api/lkn-sync/status
+```
+
+Para consultar o cambiar mapeos de maquina LKN a celda/pieza:
+
+```bash
+curl http://localhost:3001/api/lkn-mappings
+```
+
+```bash
+curl -X POST http://localhost:3001/api/lkn-mappings \
+  -H "Content-Type: application/json" \
+  -d "{\"maquina\":\"CELDA_4_X\",\"celda\":\"CELDA_4\",\"pieza\":\"PIEZA NUEVA\",\"fechaDesde\":\"YYYY-MM-DD\"}"
+```
+
+Cuando se informa un nuevo mapeo, el backend cierra el mapeo activo anterior de esa maquina hasta el dia previo a `fechaDesde`, salvo que se envie `closePrevious:false`.
+
 ## Estructura
 
 - `backend/`: API Express, importador CSV y acceso MySQL.
@@ -27,7 +77,8 @@ Sistema de captura, importacion y visualizacion de produccion horaria para solda
 
 ## Notas operativas
 
-- El backend usa `CSV_PATH` para ubicar el archivo de importacion.
+- El backend usa LKN (`lkn_soft.produccion_horaria`) como fuente viva de produccion.
+- `CSV_PATH` queda solo para importacion historica/manual.
 - El frontend apunta por defecto a `http://localhost:3001`.
 - Los cambios funcionales deberian reflejarse en `docs/CHANGELOG.md` y, si salen a uso real, tambien en `docs/DEPLOY_LOG.md`.
 
