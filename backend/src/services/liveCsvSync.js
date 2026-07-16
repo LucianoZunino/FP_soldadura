@@ -43,6 +43,8 @@ async function runLiveCsvSync() {
     stableRead: true,
     sampleCount: 3,
     sampleDelayMs: 1000,
+    skipFutureHours: true,
+    clearFutureHours: true,
     preserveExistingPositiveOnZero: true
   });
 

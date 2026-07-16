@@ -1,5 +1,33 @@
 # DEPLOY_LOG - FP_Soldadura
 
+## 2026-07-16
+
+- Operacion aplicada sobre DB:
+  - Se genero backup local de `produccion_hora` en `backups/produccion_hora_before_clean_2026-07-16T12-29-37-241Z.json`.
+  - Se eliminaron 10560 filas de `produccion_hora`.
+  - Se recargo el dia actual `2026-07-16` desde `LIVE_CSV_PATH` usando el importador corregido.
+  - Resultado inicial: 620 filas solo de `2026-07-16`, sin historicos y sin horas futuras.
+  - Al consultar produccion, el backend/proceso viejo volvio a reinyectar horas futuras (`10-11`, `11-12`, `12-13`), por lo que la limpieza no queda persistente hasta desplegar el backend corregido o detener el sync viejo.
+
+- Cambio listo para aplicar:
+  - Se bloquea la visualizacion, suma e importacion viva de franjas horarias futuras para el dia actual.
+  - El backend usa por defecto la zona horaria operativa `America/Argentina/Buenos_Aires`.
+- Impacto:
+  - Produccion no deberia mostrar datos de mediodia o tarde si la hora operativa actual todavia es anterior.
+  - `POST /api/live-sync` limpia valores futuros existentes en `produccion_hora` para el dia actual.
+- Validacion:
+  - `node --check` OK en `dates.js`, `productionService.js`, `csvImporter.js` y `liveCsvSync.js`.
+  - `npm --prefix frontend run build` OK.
+  - Consulta local contra DB real para `2026-07-16`: `CELDA_1 / DASH OP10` conserva `08-09=18`, `09-10=12` y oculta `10-11`, `11-12`, `12-13`, `13-14`, `14-15` como `0` a las 09:16 Argentina.
+- Archivos tocados:
+  - backend/src/utils/dates.js
+  - backend/src/services/productionService.js
+  - backend/src/services/csvImporter.js
+  - backend/src/services/liveCsvSync.js
+  - docs/CHANGELOG.md
+  - docs/CONTEXTO_PROYECTO.md
+  - docs/DEPLOY_LOG.md
+
 ## 2026-07-02
 
 - Cambio aplicado:

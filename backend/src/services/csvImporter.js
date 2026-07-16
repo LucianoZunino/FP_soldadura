@@ -4,7 +4,7 @@ const { parse } = require('csv-parse/sync');
 const { createPool } = require('../config/db');
 const { requireEnv } = require('../config/env');
 const { SHIFTS } = require('../constants/production');
-const { normalizeDate, previousIsoDate } = require('../utils/dates');
+const { isFutureHourForDate, normalizeDate, previousIsoDate } = require('../utils/dates');
 
 const INSERT_BATCH_SIZE = 500;
 
@@ -332,6 +332,35 @@ async function upsertProductionBatch(connection, records, options = {}) {
   }
 }
 
+async function clearFutureProduction(connection, fecha) {
+  const futureHours = SHIFTS.flatMap((shift) =>
+    shift.hours
+      .filter(([horaDesde]) => isFutureHourForDate(fecha, horaDesde))
+      .map(([horaDesde]) => ({
+        idTurno: shift.id,
+        horaDesde
+      }))
+  );
+
+  if (!futureHours.length) {
+    return 0;
+  }
+
+  const conditions = futureHours.map(() => '(id_turno = ? AND hora_desde = ?)').join(' OR ');
+  const values = futureHours.flatMap((hour) => [hour.idTurno, hour.horaDesde]);
+  const [result] = await connection.execute(
+    `UPDATE produccion_hora
+     SET cantidad = 0,
+         fecha_actualizacion = CURRENT_TIMESTAMP
+     WHERE fecha = ?
+       AND (${conditions})
+       AND cantidad <> 0`,
+    [fecha, ...values]
+  );
+
+  return result.affectedRows || 0;
+}
+
 async function importCsv(options = {}) {
   const csvPath = options.csvPath || requireEnv('CSV_PATH');
   const fecha = resolveImportDate(csvPath, options.fecha);
@@ -362,11 +391,17 @@ async function importCsv(options = {}) {
       [...new Set(importableRows.map((row) => row[2]))]
     );
     const productionRecords = [];
+    let futureCellsSkipped = 0;
 
     for (const row of importableRows) {
       for (const shift of SHIFTS) {
         for (let index = 0; index < shift.hours.length; index += 1) {
           const [horaDesde, horaHasta] = shift.hours[index];
+
+          if (options.skipFutureHours && isFutureHourForDate(fecha, horaDesde)) {
+            futureCellsSkipped += 1;
+            continue;
+          }
 
           productionRecords.push({
             fecha,
@@ -387,6 +422,11 @@ async function importCsv(options = {}) {
       preserveExistingPositiveOnZero: options.preserveExistingPositiveOnZero
     });
     summary.cellsImported = productionRecords.length;
+    summary.futureCellsSkipped = futureCellsSkipped;
+
+    if (options.clearFutureHours) {
+      summary.futureCellsCleared = await clearFutureProduction(connection, fecha);
+    }
 
     await connection.commit();
 

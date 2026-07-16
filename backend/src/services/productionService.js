@@ -1,6 +1,6 @@
 const { createPool } = require('../config/db');
 const { SHIFTS, hourLabel, productionStatus } = require('../constants/production');
-const { normalizeDate } = require('../utils/dates');
+const { isFutureHourForDate, normalizeDate } = require('../utils/dates');
 
 function formatTime(value) {
   if (typeof value === 'string') return value;
@@ -25,7 +25,7 @@ function emptyHours() {
   );
 }
 
-function buildMatrix(rows) {
+function buildMatrix(rows, options = {}) {
   const map = new Map();
 
   for (const row of rows) {
@@ -49,7 +49,8 @@ function buildMatrix(rows) {
     const item = map.get(key);
     const horaDesde = formatTime(row.hora_desde);
     const horaHasta = formatTime(row.hora_hasta);
-    const amount = Number(row.cantidad || 0);
+    const futureHour = options.hideFutureHours && isFutureHourForDate(options.fecha, horaDesde);
+    const amount = futureHour ? 0 : Number(row.cantidad || 0);
     const hourKey = `${row.id_turno}:${horaDesde}`;
 
     item.hours[hourKey] = {
@@ -58,7 +59,7 @@ function buildMatrix(rows) {
       horaDesde,
       horaHasta,
       cantidad: amount,
-      status: productionStatus(amount, row.celda)
+      status: futureHour ? 'empty' : productionStatus(amount, row.celda)
     };
 
     item.totalsByShift[row.id_turno] += amount;
@@ -127,7 +128,7 @@ async function getProductionRows(fecha) {
 async function getDashboard(fechaInput) {
   const fecha = normalizeDate(fechaInput);
   const rows = await getProductionRows(fecha);
-  const matrix = buildMatrix(rows);
+  const matrix = buildMatrix(rows, { fecha, hideFutureHours: true });
   const totalsByShift = { 1: 0, 2: 0, 3: 0 };
   const totalsProductosFinalesByShift = { 1: 0, 2: 0, 3: 0 };
   let totalProductosFinales = 0;

@@ -129,7 +129,8 @@ Relaciones funcionales:
 5. Para el modo vivo, el backend toma varias muestras del CSV y fusiona lecturas para evitar ceros transitorios durante la escritura del archivo compartido.
 6. Si el usuario hizo una importacion manual del dia actual y el archivo `LIVE_CSV_PATH` tiene una fecha de modificacion mas vieja que esa fuente manual, el modo vivo no pisa la base y devuelve un resultado omitido para preservar la informacion mas actual.
 7. La escritura es por upsert por lote. En importaciones manuales, los valores nuevos reemplazan valores previos, incluyendo ceros. En sincronizacion viva, un cero entrante no pisa un valor positivo ya existente.
-8. Si hay una sincronizacion en curso o una sincronizacion reciente dentro de la ventana configurada, el backend reutiliza o devuelve el ultimo resultado para evitar escrituras concurrentes innecesarias.
+8. Para el dia actual, la sincronizacion viva no importa franjas horarias futuras y limpia a cero valores futuros ya persistidos, porque el CSV compartido puede traer datos adelantados o residuales.
+9. Si hay una sincronizacion en curso o una sincronizacion reciente dentro de la ventana configurada, el backend reutiliza o devuelve el ultimo resultado para evitar escrituras concurrentes innecesarias.
 
 ### Importacion de articulos finales
 
@@ -143,8 +144,9 @@ Relaciones funcionales:
 
 1. El frontend solicita una fecha.
 2. `GET /api/dashboard` devuelve matriz diaria y resumenes.
-3. `GET /api/turno` devuelve detalle de un turno puntual.
-4. `GET /api/catalogos` devuelve listas para filtros y detalle.
+3. Si la fecha consultada es el dia operativo actual, el backend oculta y excluye de los totales las franjas horarias futuras.
+4. `GET /api/turno` devuelve detalle de un turno puntual.
+5. `GET /api/catalogos` devuelve listas para filtros y detalle.
 
 ## Contratos actuales
 
@@ -184,6 +186,7 @@ Segun los umbrales actuales:
 - `LIVE_CSV_PATH`
 - `LIVE_REFRESH_SECONDS`
 - `ARTICLES_XLSX_PATH`
+- `APP_TIME_ZONE` opcional; por defecto `America/Argentina/Buenos_Aires`
 - `PORT` opcional para backend
 - `VITE_API_BASE_URL` opcional para frontend
 

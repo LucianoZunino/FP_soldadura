@@ -1,5 +1,11 @@
 # CHANGELOG - FP_Soldadura
 
+## 2026-07-16
+
+- Se corrige la vista del dia actual para que no muestre ni sume produccion de franjas horarias futuras, aunque existan valores adelantados en `produccion_hora`.
+- La sincronizacion viva (`POST /api/live-sync`) deja de importar buckets horarios futuros y limpia a cero valores futuros ya persistidos para el dia actual.
+- El calculo de dia/hora operativa del backend queda fijado por defecto a `America/Argentina/Buenos_Aires`, configurable con `APP_TIME_ZONE`, evitando errores si el proceso corre con zona horaria UTC.
+
 ## 2026-07-13
 
 - Se corrige la convivencia entre `POST /api/import` y `POST /api/live-sync` para la fecha actual: el modo vivo deja de pisar una importacion manual si `LIVE_CSV_PATH` tiene una fecha de modificacion anterior al archivo importado manualmente.
