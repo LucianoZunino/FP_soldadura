@@ -1,5 +1,73 @@
 # DEPLOY_LOG - FP_Soldadura
 
+## 2026-08-04
+
+- Cambio preparado en modo Test:
+  - Se agrega `fecha_modificada` a `produccion_hora` para separar fecha origen LKN de fecha operativa de dashboard.
+  - El importador LKN corrige el cruce de Turno 3: `00-06` se consulta en el dia anterior mediante `fecha_modificada`.
+  - `GET /api/dashboard` y `GET /api/turno` leen por `fecha_modificada`.
+  - El scheduler LKN usa fecha operativa actual; entre `00:00` y `05:59` sincroniza el dia anterior.
+- Validacion ejecutada sobre `ferrosider_produccion_soldadura_test`:
+  - `npm --prefix backend run db:init` OK.
+  - `POST/importacion LKN` equivalente para `2026-07-28`: 2736 filas origen leidas, 1392 filas importadas, 59 maquinas importadas.
+  - `POST/importacion LKN` equivalente para `2026-07-29`: 2640 filas origen leidas, 1320 filas importadas, 55 maquinas importadas.
+  - Consulta SQL validada: para `fecha_modificada=2026-07-28`, las horas `00-06` del Turno 3 quedaron con `fecha_origen=2026-07-29`.
+  - Dashboard `2026-07-28` devuelve Turno 3 completo incluyendo `22-00` de `2026-07-28` y `00-06` de `2026-07-29`.
+- Pendiente antes de produccion:
+  - Confirmar despliegue en modo Produccion.
+  - Ejecutar `npm --prefix backend run db:init` contra `ferrosider_produccion_soldadura`.
+  - Reimportar al menos los dias impactados desde LKN con `replaceDate=true`.
+  - Verificar `GET /api/live-sync/status` con `source=lkn` y sin errores.
+- Configuracion esperada de produccion:
+  - `SYNC_SOURCE=lkn`
+  - `LKN_DB_NAME=lkn_soft`
+  - `LKN_AUTO_SYNC_ENABLED=true`
+  - `LKN_SYNC_SECONDS=15`
+  - `LIVE_CSV_AUTO_SYNC_ENABLED=false`
+  - `LIVE_CSV_PATH` comentado o ausente, salvo contraste manual.
+- Archivos tocados:
+  - `.env.example`
+  - `backend/database/init.sql`
+  - `backend/src/database/initDb.js`
+  - `backend/src/server.js`
+  - `backend/src/services/csvImporter.js`
+  - `backend/src/services/lknAutoSync.js`
+  - `backend/src/services/lknImporter.js`
+  - `backend/src/services/productionService.js`
+  - `backend/src/utils/dates.js`
+  - `docs/CHANGELOG.md`
+  - `docs/CONTEXTO_PROYECTO.md`
+  - `docs/DEPLOY_LOG.md`
+  - `docs/FP_Soldadura_Flujo_operativo_datos.puml`
+
+## 2026-07-27
+
+- Cambio listo para produccion:
+  - Se vuelve la fuente viva a CSV por diferencias detectadas contra la intranet vieja al usar `lkn_soft.produccion_horaria`.
+  - El backend queda con default seguro `SYNC_SOURCE=csv` si la variable no existe.
+  - `POST /api/live-sync` y `POST /api/import` para el dia actual usan la fuente configurada; con la configuracion recomendada quedan consumiendo CSV vivo.
+  - LKN queda dado de baja como fuente viva: `LKN_AUTO_SYNC_ENABLED=false`.
+- Estado actual:
+  - Esta preparacion queda superada por la correccion de `fecha_modificada` del 2026-08-04; la fuente viva vuelve a ser LKN.
+- Configuracion esperada de produccion:
+  - `SYNC_SOURCE=csv`
+  - `LIVE_CSV_PATH=\\192.168.3.223\Mantenimiento\CSV\produccion_sold_bk_1.csv`
+  - `LIVE_CSV_AUTO_SYNC_ENABLED=true`
+  - `LIVE_REFRESH_SECONDS=10`
+  - `LKN_AUTO_SYNC_ENABLED=false`
+- Validacion:
+  - Validacion local en Test contra `ferrosider_produccion_soldadura_test` usando CSV vivo.
+  - El CSV vivo coincide con la captura de la intranet vieja en los bloques que diferian con LKN.
+  - Las diferencias restantes observadas correspondian a la hora viva `14-15`, que siguio avanzando luego de tomada la captura.
+- Archivos tocados:
+  - `.env.example`
+  - `README.md`
+  - `backend/src/server.js`
+  - `backend/src/services/liveCsvSync.js`
+  - `docs/CHANGELOG.md`
+  - `docs/CONTEXTO_PROYECTO.md`
+  - `docs/DEPLOY_LOG.md`
+
 ## 2026-07-16
 
 - Operacion aplicada sobre DB:

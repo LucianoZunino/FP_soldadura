@@ -107,6 +107,7 @@ CREATE TABLE IF NOT EXISTS produccion_hora (
     id_produccion BIGINT AUTO_INCREMENT PRIMARY KEY,
 
     fecha DATE NOT NULL,
+    fecha_modificada DATE NOT NULL,
     id_turno TINYINT NOT NULL,
 
     hora_desde TIME NOT NULL,
@@ -133,6 +134,7 @@ CREATE TABLE IF NOT EXISTS produccion_hora (
     ),
 
     INDEX idx_produccion_fecha (fecha),
+    INDEX idx_produccion_fecha_modificada (fecha_modificada),
     INDEX idx_produccion_fecha_turno (fecha, id_turno),
     INDEX idx_produccion_celda (id_celda),
     INDEX idx_produccion_pieza (id_pieza)

@@ -1,6 +1,12 @@
 const { createPool } = require('../config/db');
 const { getEnv } = require('../config/env');
-const { isFutureHourForDate, normalizeDate, todayIsoDate } = require('../utils/dates');
+const {
+  isFutureHourForDate,
+  nextIsoDate,
+  normalizeDate,
+  previousIsoDate,
+  todayIsoDate
+} = require('../utils/dates');
 
 const TURNOS = {
   'MAÑANA': 1,
@@ -20,6 +26,36 @@ function canonical(value) {
 function formatTime(value) {
   if (typeof value === 'string') return value;
   return String(value).slice(0, 8);
+}
+
+function sourceDate(value) {
+  if (value instanceof Date) {
+    const year = value.getFullYear();
+    const month = String(value.getMonth() + 1).padStart(2, '0');
+    const day = String(value.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+  }
+
+  return normalizeDate(String(value).slice(0, 10));
+}
+
+function timeToMinutes(value) {
+  const [hours, minutes] = String(value).split(':').map(Number);
+
+  return (hours * 60) + (minutes || 0);
+}
+
+function resolveTurnoId(turno) {
+  return TURNOS[String(turno || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()];
+}
+
+function resolveFechaModificada(fechaOrigen, idTurno, horaDesde) {
+  if (idTurno === 3 && timeToMinutes(horaDesde) < 360) {
+    return previousIsoDate(fechaOrigen);
+  }
+
+  return fechaOrigen;
 }
 
 function quoteIdentifier(identifier) {
@@ -122,14 +158,17 @@ async function getMachineMappings(connection, fecha) {
 
 function resolveMappedRecord(row, catalogMaps, machineMappings = new Map()) {
   const explicitMapping = machineMappings.get(canonical(row.maquina));
+  const fecha = sourceDate(row.fecha_operativa);
+  const idTurno = resolveTurnoId(row.turno);
+  const horaDesde = formatTime(row.hora_desde);
+  const fechaModificada = resolveFechaModificada(fecha, idTurno, horaDesde);
 
   if (explicitMapping) {
     return {
-      fecha: normalizeDate(row.fecha_operativa instanceof Date
-        ? row.fecha_operativa.toISOString().slice(0, 10)
-        : String(row.fecha_operativa).slice(0, 10)),
-      idTurno: TURNOS[String(row.turno || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()],
-      horaDesde: formatTime(row.hora_desde),
+      fecha,
+      fechaModificada,
+      idTurno,
+      horaDesde,
       horaHasta: formatTime(row.hora_hasta),
       idCelda: explicitMapping.id_celda,
       idPieza: explicitMapping.id_pieza,
@@ -160,11 +199,10 @@ function resolveMappedRecord(row, catalogMaps, machineMappings = new Map()) {
   }
 
   return {
-    fecha: normalizeDate(row.fecha_operativa instanceof Date
-      ? row.fecha_operativa.toISOString().slice(0, 10)
-      : String(row.fecha_operativa).slice(0, 10)),
-    idTurno: TURNOS[String(row.turno || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()],
-    horaDesde: formatTime(row.hora_desde),
+    fecha,
+    fechaModificada,
+    idTurno,
+    horaDesde,
     horaHasta: formatTime(row.hora_hasta),
     idCelda: celda.id_celda,
     idPieza: pieza.id_pieza,
@@ -398,6 +436,7 @@ async function getLknMachineMappings(options = {}) {
 
 async function importLknProduction(options = {}) {
   const fecha = normalizeDate(options.fecha || todayIsoDate());
+  const fechaSiguiente = nextIsoDate(fecha);
   const sourceSchema = getEnv('LKN_DB_NAME', 'lkn_soft');
   const replaceDate = options.replaceDate !== false;
   const skipFutureHours = options.skipFutureHours !== false;
@@ -410,14 +449,15 @@ async function importLknProduction(options = {}) {
     const [sourceRows] = await connection.execute(
       `SELECT fecha_operativa, maquina, hora_desde, hora_hasta, turno, cantidad, actualizado_en
        FROM ${quoteIdentifier(sourceSchema)}.produccion_horaria
-       WHERE fecha_operativa = ?
-       ORDER BY maquina, hora_desde`,
-      [fecha]
+       WHERE fecha_operativa IN (?, ?)
+       ORDER BY fecha_operativa, maquina, hora_desde`,
+      [fecha, fechaSiguiente]
     );
 
     const mappedRecords = [];
     const failures = [];
     let futureRowsSkipped = 0;
+    let operationalDateRowsSkipped = 0;
     let explicitMappingsUsed = 0;
     let fallbackMappingsUsed = 0;
 
@@ -431,6 +471,11 @@ async function importLknProduction(options = {}) {
 
       if (!mapped.idTurno) {
         failures.push({ error: 'invalid-shift', maquina: row.maquina, turno: row.turno });
+        continue;
+      }
+
+      if (mapped.fechaModificada !== fecha) {
+        operationalDateRowsSkipped += 1;
         continue;
       }
 
@@ -455,6 +500,7 @@ async function importLknProduction(options = {}) {
         sourceRows: sourceRows.length,
         rowsImported: 0,
         futureRowsSkipped,
+        operationalDateRowsSkipped,
         failures,
         skipped: true,
         reason: 'mapping-failures'
@@ -464,13 +510,14 @@ async function importLknProduction(options = {}) {
     await connection.beginTransaction();
 
     if (replaceDate) {
-      await connection.execute('DELETE FROM produccion_hora WHERE fecha = ?', [fecha]);
+      await connection.execute('DELETE FROM produccion_hora WHERE fecha_modificada = ?', [fecha]);
     }
 
     if (mappedRecords.length) {
-      const placeholders = mappedRecords.map(() => '(?, ?, ?, ?, ?, ?, ?)').join(',');
+      const placeholders = mappedRecords.map(() => '(?, ?, ?, ?, ?, ?, ?, ?)').join(',');
       const values = mappedRecords.flatMap((record) => [
         record.fecha,
+        record.fechaModificada,
         record.idTurno,
         record.horaDesde,
         record.horaHasta,
@@ -482,6 +529,7 @@ async function importLknProduction(options = {}) {
       await connection.execute(
         `INSERT INTO produccion_hora (
             fecha,
+            fecha_modificada,
             id_turno,
             hora_desde,
             hora_hasta,
@@ -491,6 +539,7 @@ async function importLknProduction(options = {}) {
          )
          VALUES ${placeholders}
          ON DUPLICATE KEY UPDATE
+            fecha_modificada = VALUES(fecha_modificada),
             hora_hasta = VALUES(hora_hasta),
             cantidad = VALUES(cantidad)`,
         values
@@ -508,6 +557,7 @@ async function importLknProduction(options = {}) {
       explicitMappingsUsed,
       fallbackMappingsUsed,
       futureRowsSkipped,
+      operationalDateRowsSkipped,
       replaceDate,
       skipped: false
     };

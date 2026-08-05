@@ -40,11 +40,19 @@ function normalizeDate(value) {
 }
 
 function previousIsoDate(value = todayIsoDate()) {
+  return addDaysIsoDate(value, -1);
+}
+
+function nextIsoDate(value = todayIsoDate()) {
+  return addDaysIsoDate(value, 1);
+}
+
+function addDaysIsoDate(value, days) {
   const date = normalizeDate(value);
   const [year, month, day] = date.split('-').map(Number);
-  const previous = new Date(Date.UTC(year, month - 1, day - 1));
+  const next = new Date(Date.UTC(year, month - 1, day + days));
 
-  return previous.toISOString().slice(0, 10);
+  return next.toISOString().slice(0, 10);
 }
 
 function currentTimeString(value = new Date()) {
@@ -67,9 +75,22 @@ function isFutureHourForDate(fecha, horaDesde, now = new Date()) {
   return timeToMinutes(horaDesde) > timeToMinutes(currentTimeString(now));
 }
 
+function currentOperationalDate(value = new Date()) {
+  const today = todayIsoDate(value);
+
+  if (timeToMinutes(currentTimeString(value)) < 360) {
+    return previousIsoDate(today);
+  }
+
+  return today;
+}
+
 module.exports = {
+  addDaysIsoDate,
+  currentOperationalDate,
   currentTimeString,
   isFutureHourForDate,
+  nextIsoDate,
   normalizeDate,
   previousIsoDate,
   todayIsoDate

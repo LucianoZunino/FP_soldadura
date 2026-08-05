@@ -4,6 +4,12 @@ const { getEnv } = require('./config/env');
 const { importCsv } = require('./services/csvImporter');
 const { importArticleRelations } = require('./services/articleRelationImporter');
 const {
+  getLiveCsvSyncStatus,
+  registerManualImport,
+  startLiveCsvAutoSync,
+  syncLiveCsv
+} = require('./services/liveCsvSync');
+const {
   getLknMachineMappings,
   importLknProduction,
   seedLknMachineMappings,
@@ -15,6 +21,25 @@ const { normalizeDate, todayIsoDate } = require('./utils/dates');
 
 const app = express();
 const port = Number(getEnv('PORT', 3001));
+
+function syncSource() {
+  return getEnv('SYNC_SOURCE', 'lkn').toLowerCase();
+}
+
+async function runConfiguredLiveSync(options = {}) {
+  if (syncSource() === 'csv') {
+    return syncLiveCsv({
+      force: options.force,
+      csvPath: options.csvPath
+    });
+  }
+
+  return runLknAutoSync({
+    fecha: options.fecha,
+    replaceDate: options.replaceDate,
+    skipFutureHours: options.skipFutureHours
+  });
+}
 
 app.use(cors());
 app.use(express.json());
@@ -29,7 +54,7 @@ app.post('/api/import', async (req, res, next) => {
     const csvPath = req.body?.csvPath;
 
     if (!csvPath && requestedDate === todayIsoDate()) {
-      res.json(await runLknAutoSync({ fecha: requestedDate }));
+      res.json(await runConfiguredLiveSync({ fecha: requestedDate, force: true }));
       return;
     }
 
@@ -37,6 +62,7 @@ app.post('/api/import', async (req, res, next) => {
       fecha: requestedDate,
       csvPath
     });
+    registerManualImport(result);
 
     res.json(result);
   } catch (error) {
@@ -115,14 +141,23 @@ app.post('/api/lkn-sync/run', async (req, res, next) => {
 
 app.post('/api/live-sync', async (req, res, next) => {
   try {
-    res.json(await runLknAutoSync({
+    res.json(await runConfiguredLiveSync({
       fecha: req.body?.fecha || req.query.fecha,
       replaceDate: req.body?.replaceDate !== false,
-      skipFutureHours: req.body?.skipFutureHours !== false
+      skipFutureHours: req.body?.skipFutureHours !== false,
+      force: req.body?.force !== false
     }));
   } catch (error) {
     next(error);
   }
+});
+
+app.get('/api/live-sync/status', (req, res) => {
+  res.json({
+    source: syncSource(),
+    csv: getLiveCsvSyncStatus(),
+    lkn: getLknAutoSyncStatus()
+  });
 });
 
 app.get('/api/dashboard', async (req, res, next) => {
@@ -162,7 +197,9 @@ app.use((error, req, res, next) => {
 
 app.listen(port, () => {
   console.log(`Backend listening on http://localhost:${port}`);
-  if (startLknAutoSync()) {
+  if (syncSource() === 'csv' && startLiveCsvAutoSync()) {
+    console.log(`CSV auto-sync enabled every ${getLiveCsvSyncStatus().intervalSeconds}s`);
+  } else if (syncSource() === 'lkn' && startLknAutoSync()) {
     console.log(`LKN auto-sync enabled every ${getLknAutoSyncStatus().intervalSeconds}s`);
   }
 });

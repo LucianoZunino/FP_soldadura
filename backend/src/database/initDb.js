@@ -52,10 +52,64 @@ async function initDb() {
       .replace(/USE\s+ferrosider_produccion_soldadura;/i, '');
 
     await connection.query(schemaSql);
+    await ensureProductionHourMigrations(connection, dbName);
 
     console.log(`Database initialized: ${dbName}`);
   } finally {
     await connection.end();
+  }
+}
+
+async function columnExists(connection, dbName, tableName, columnName) {
+  const [rows] = await connection.execute(
+    `SELECT COUNT(*) AS total
+     FROM information_schema.COLUMNS
+     WHERE TABLE_SCHEMA = ?
+       AND TABLE_NAME = ?
+       AND COLUMN_NAME = ?`,
+    [dbName, tableName, columnName]
+  );
+
+  return Number(rows[0]?.total || 0) > 0;
+}
+
+async function indexExists(connection, dbName, tableName, indexName) {
+  const [rows] = await connection.execute(
+    `SELECT COUNT(*) AS total
+     FROM information_schema.STATISTICS
+     WHERE TABLE_SCHEMA = ?
+       AND TABLE_NAME = ?
+       AND INDEX_NAME = ?`,
+    [dbName, tableName, indexName]
+  );
+
+  return Number(rows[0]?.total || 0) > 0;
+}
+
+async function ensureProductionHourMigrations(connection, dbName) {
+  if (!(await columnExists(connection, dbName, 'produccion_hora', 'fecha_modificada'))) {
+    await connection.query(
+      `ALTER TABLE produccion_hora
+       ADD COLUMN fecha_modificada DATE NULL AFTER fecha`
+    );
+  }
+
+  await connection.query(
+    `UPDATE produccion_hora
+     SET fecha_modificada = fecha
+     WHERE fecha_modificada IS NULL`
+  );
+
+  await connection.query(
+    `ALTER TABLE produccion_hora
+     MODIFY fecha_modificada DATE NOT NULL`
+  );
+
+  if (!(await indexExists(connection, dbName, 'produccion_hora', 'idx_produccion_fecha_modificada'))) {
+    await connection.query(
+      `CREATE INDEX idx_produccion_fecha_modificada
+       ON produccion_hora (fecha_modificada)`
+    );
   }
 }
 

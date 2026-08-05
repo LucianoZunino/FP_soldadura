@@ -1,5 +1,24 @@
 # CHANGELOG - FP_Soldadura
 
+## 2026-08-04
+
+- Se agrega `produccion_hora.fecha_modificada` como fecha operativa de consulta del dashboard.
+- El importador LKN conserva `fecha` como fecha origen de `lkn_soft.produccion_horaria` y calcula `fecha_modificada` para el cruce de Turno 3.
+- Para Turno 3, las horas `00-06` de LKN se guardan con `fecha_modificada` del dia anterior, por ejemplo origen `2026-07-29 00-06` consulta como operativo `2026-07-28`.
+- `GET /api/dashboard` y `GET /api/turno` pasan a consultar por `fecha_modificada`.
+- La sincronizacion LKN automatica usa fecha operativa actual: entre `00:00` y `05:59` refresca el dia anterior.
+- En modo Test se valida LKN contra `ferrosider_produccion_soldadura_test` para `2026-07-28` y `2026-07-29`.
+- Se deja la configuracion preparada para seguir consumiendo desde LKN en produccion (`SYNC_SOURCE=lkn`, `LKN_AUTO_SYNC_ENABLED=true`) y se desactiva/comenta el proceso CSV vivo.
+
+## 2026-07-23
+
+- Se detectan diferencias entre `lkn_soft.produccion_horaria` y la intranet vieja en varias celdas/horas; luego se identifico que una causa critica era el cruce de dia del Turno 3.
+- Se restaura la sincronizacion viva desde CSV mediante `LIVE_CSV_PATH`, con scheduler backend opcional (`LIVE_CSV_AUTO_SYNC_ENABLED`, `LIVE_REFRESH_SECONDS`).
+- `POST /api/live-sync` y `POST /api/import` para el dia actual pasan a usar la fuente configurada por `SYNC_SOURCE=csv|lkn`.
+- Se agrega `GET /api/live-sync/status` para ver la fuente activa y el estado de los sincronizadores CSV/LKN.
+- En modo Test se configura `SYNC_SOURCE=csv`, `LKN_AUTO_SYNC_ENABLED=false` y base `ferrosider_produccion_soldadura_test`.
+- Esta decision queda superada por la correccion de `fecha_modificada` del 2026-08-04: produccion vuelve a quedar orientada a LKN.
+
 ## 2026-07-16
 
 - Se corrige la vista del dia actual para que no muestre ni sume produccion de franjas horarias futuras, aunque existan valores adelantados en `produccion_hora`.

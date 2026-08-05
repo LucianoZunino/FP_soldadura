@@ -31,7 +31,24 @@ Esta configuracion evita que las pruebas locales escriban sobre la tabla product
 VITE_AUTO_DASHBOARD_REFRESH=true
 ```
 
-La fuente viva recomendada es `lkn_soft.produccion_horaria`. Para rellenar la base desde LKN se puede usar:
+La fuente viva se selecciona con `SYNC_SOURCE`.
+
+La fuente viva esperada es LKN, con correccion de fecha operativa en `fecha_modificada` para el Turno 3:
+
+```env
+SYNC_SOURCE=lkn
+LKN_AUTO_SYNC_ENABLED=true
+LKN_SYNC_SECONDS=15
+LKN_DB_NAME=lkn_soft
+```
+
+Estado de la sincronizacion viva configurada:
+
+```bash
+curl http://localhost:3001/api/live-sync/status
+```
+
+Para rellenar una base de prueba desde LKN se puede usar:
 
 ```bash
 curl -X POST http://localhost:3001/api/import-lkn \
@@ -39,12 +56,22 @@ curl -X POST http://localhost:3001/api/import-lkn \
   -d "{\"fecha\":\"YYYY-MM-DD\",\"replaceDate\":true}"
 ```
 
-Para actualizarla automaticamente desde el backend:
+CSV queda como fallback vivo si se necesita contrastar contra el archivo compartido:
 
 ```env
-LKN_AUTO_SYNC_ENABLED=true
-LKN_SYNC_SECONDS=15
-LKN_DB_NAME=lkn_soft
+SYNC_SOURCE=csv
+LIVE_CSV_PATH=\\192.168.3.223\Mantenimiento\CSV\produccion_sold_bk_1.csv
+LIVE_CSV_AUTO_SYNC_ENABLED=true
+LIVE_REFRESH_SECONDS=10
+LKN_AUTO_SYNC_ENABLED=false
+```
+
+En produccion, el proceso CSV vivo debe quedar comentado/desactivado:
+
+```env
+# LIVE_CSV_PATH=\\192.168.3.223\Mantenimiento\CSV\produccion_sold_bk_1.csv
+LIVE_CSV_AUTO_SYNC_ENABLED=false
+# LIVE_REFRESH_SECONDS=10
 ```
 
 Estado del scheduler:
@@ -77,8 +104,9 @@ Cuando se informa un nuevo mapeo, el backend cierra el mapeo activo anterior de 
 
 ## Notas operativas
 
-- El backend usa LKN (`lkn_soft.produccion_horaria`) como fuente viva de produccion.
-- `CSV_PATH` queda solo para importacion historica/manual.
+- Produccion debe quedar con `SYNC_SOURCE=lkn` una vez validada la correccion de Turno 3.
+- `fecha_modificada` es la fecha operativa usada por el dashboard; en Turno 3 mueve `00-06` al dia anterior.
+- `CSV_PATH` queda para importacion historica/manual; `LIVE_CSV_PATH` queda como fallback vivo.
 - El frontend apunta por defecto a `http://localhost:3001`.
 - Los cambios funcionales deberian reflejarse en `docs/CHANGELOG.md` y, si salen a uso real, tambien en `docs/DEPLOY_LOG.md`.
 

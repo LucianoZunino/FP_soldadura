@@ -1,5 +1,5 @@
 const { getEnv } = require('../config/env');
-const { todayIsoDate } = require('../utils/dates');
+const { currentOperationalDate } = require('../utils/dates');
 const { importLknProduction } = require('./lknImporter');
 
 let intervalId = null;
@@ -30,7 +30,7 @@ async function runLknAutoSync(options = {}) {
   }
 
   inFlight = importLknProduction({
-    fecha: options.fecha || todayIsoDate(),
+    fecha: options.fecha || currentOperationalDate(),
     replaceDate: options.replaceDate !== false,
     skipFutureHours: options.skipFutureHours !== false
   });

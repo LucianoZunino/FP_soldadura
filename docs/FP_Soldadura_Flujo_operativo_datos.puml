@@ -9,6 +9,7 @@ participant "LKN Importer" as LknImporter
 participant "CSV Importer" as Importer
 database "MySQL\nferrosider_produccion_soldadura" as DB
 database "lkn_soft\nproduccion_horaria" as Lkn
+participant "CSV vivo fallback\nLIVE_CSV_PATH" as CsvLive
 participant "CSV historico\nCSV_PATH" as CsvManual
 participant "Excel articulos\nARTICLES_XLSX_PATH" as Excel
 
@@ -23,14 +24,15 @@ deactivate DB
 API --> Frontend : Dashboard inicial
 deactivate API
 
-loop Cada LKN_SYNC_SECONDS si LKN_AUTO_SYNC_ENABLED=true
-  LknSync -> LknImporter : importLknProduction(fecha=hoy)
+loop Cada LKN_SYNC_SECONDS si SYNC_SOURCE=lkn y LKN_AUTO_SYNC_ENABLED=true
+  LknSync -> LknImporter : importLknProduction(fecha_operativa_actual)
   activate LknImporter
-  LknImporter -> Lkn : Lee produccion_horaria
+  LknImporter -> Lkn : Lee fecha solicitada + dia siguiente
   Lkn --> LknImporter : Produccion por maquina/hora
+  LknImporter -> LknImporter : Calcula fecha_modificada para Turno 3 00-06
   LknImporter -> DB : Consulta maquina_pieza_mapeo vigente
   DB --> LknImporter : celda + pieza por maquina
-  LknImporter -> DB : Reemplaza produccion_hora del dia
+  LknImporter -> DB : Reemplaza produccion_hora por fecha_modificada
   DB --> LknImporter : Datos actualizados
   deactivate LknImporter
 end
@@ -50,9 +52,9 @@ Operador -> Frontend : Actualizar vivo manual
 Frontend -> API : POST /api/live-sync
 activate API
 API -> LknSync : runLknAutoSync()
-LknSync -> LknImporter : importLknProduction(fecha=hoy)
+LknSync -> LknImporter : importLknProduction(fecha_operativa)
 LknImporter -> Lkn : Lee produccion_horaria
-LknImporter -> DB : Actualiza produccion_hora
+LknImporter -> DB : Actualiza produccion_hora con fecha_modificada
 API --> Frontend : Resultado sync LKN
 deactivate API
 

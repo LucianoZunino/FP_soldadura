@@ -79,6 +79,7 @@ async function getProductionRows(fecha) {
     const [rows] = await pool.execute(
       `SELECT
           ph.fecha,
+          ph.fecha_modificada,
           ph.id_turno,
           ph.hora_desde,
           ph.hora_hasta,
@@ -114,7 +115,7 @@ async function getProductionRows(fecha) {
          INNER JOIN articulo_final af ON af.id_articulo_final = paf.id_articulo_final
          GROUP BY paf.id_pieza
        ) article_map ON article_map.id_pieza = p.id_pieza
-       WHERE ph.fecha = ?
+       WHERE ph.fecha_modificada = ?
        ORDER BY c.nombre, p.descripcion, ph.id_turno, ph.hora_desde`,
       [fecha]
     );

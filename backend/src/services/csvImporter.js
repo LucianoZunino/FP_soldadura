@@ -188,6 +188,7 @@ async function upsertProduction(connection, record) {
   await connection.execute(
     `INSERT INTO produccion_hora (
         fecha,
+        fecha_modificada,
         id_turno,
         hora_desde,
         hora_hasta,
@@ -195,12 +196,14 @@ async function upsertProduction(connection, record) {
         id_pieza,
         cantidad
      )
-     VALUES (?, ?, ?, ?, ?, ?, ?)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
      ON DUPLICATE KEY UPDATE
+        fecha_modificada = VALUES(fecha_modificada),
         hora_hasta = VALUES(hora_hasta),
         cantidad = VALUES(cantidad)`,
     [
       record.fecha,
+      record.fechaModificada || record.fecha,
       record.idTurno,
       record.horaDesde,
       record.horaHasta,
@@ -304,9 +307,10 @@ async function upsertProductionBatch(connection, records, options = {}) {
     : 'cantidad = VALUES(cantidad)';
 
   for (const batch of chunks(records, INSERT_BATCH_SIZE)) {
-    const placeholders = batch.map(() => '(?, ?, ?, ?, ?, ?, ?)').join(',');
+    const placeholders = batch.map(() => '(?, ?, ?, ?, ?, ?, ?, ?)').join(',');
     const values = batch.flatMap((record) => [
       record.fecha,
+      record.fechaModificada || record.fecha,
       record.idTurno,
       record.horaDesde,
       record.horaHasta,
@@ -318,6 +322,7 @@ async function upsertProductionBatch(connection, records, options = {}) {
     await connection.execute(
       `INSERT INTO produccion_hora (
           fecha,
+          fecha_modificada,
           id_turno,
           hora_desde,
           hora_hasta,
@@ -327,6 +332,7 @@ async function upsertProductionBatch(connection, records, options = {}) {
        )
        VALUES ${placeholders}
        ON DUPLICATE KEY UPDATE
+          fecha_modificada = VALUES(fecha_modificada),
           hora_hasta = VALUES(hora_hasta),
           ${updateAmountSql}`,
       values
@@ -407,6 +413,7 @@ async function importCsv(options = {}) {
 
           productionRecords.push({
             fecha,
+            fechaModificada: fecha,
             idTurno: shift.id,
             horaDesde,
             horaHasta,
