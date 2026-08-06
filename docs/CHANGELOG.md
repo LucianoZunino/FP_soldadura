@@ -9,6 +9,7 @@
 - La sincronizacion LKN automatica usa fecha operativa actual: entre `00:00` y `05:59` refresca el dia anterior.
 - En modo Test se valida LKN contra `ferrosider_produccion_soldadura_test` para `2026-07-28` y `2026-07-29`.
 - Se deja la configuracion preparada para seguir consumiendo desde LKN en produccion (`SYNC_SOURCE=lkn`, `LKN_AUTO_SYNC_ENABLED=true`) y se desactiva/comenta el proceso CSV vivo.
+- La grilla del frontend muestra `0` explicitamente en las horas sin produccion, en lugar de dejar la celda vacia.
 
 ## 2026-07-23
 

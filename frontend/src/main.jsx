@@ -164,7 +164,7 @@ function Legend() {
 }
 
 function CellValue({ hour }) {
-  return <td className={`heat ${hour?.status || 'empty'}`}>{hour?.cantidad || ''}</td>;
+  return <td className={`heat ${hour?.status || 'empty'}`}>{hour?.cantidad ?? 0}</td>;
 }
 
 function HeaderTitle({ title, subtitle, sidebarCollapsed, onToggleSidebar }) {
