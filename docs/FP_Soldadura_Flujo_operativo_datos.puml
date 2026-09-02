@@ -27,9 +27,9 @@ deactivate API
 loop Cada LKN_SYNC_SECONDS si SYNC_SOURCE=lkn y LKN_AUTO_SYNC_ENABLED=true
   LknSync -> LknImporter : importLknProduction(fecha_operativa_actual)
   activate LknImporter
-  LknImporter -> Lkn : Lee fecha solicitada + dia siguiente
+  LknImporter -> Lkn : Lee la fecha_operativa solicitada
   Lkn --> LknImporter : Produccion por maquina/hora
-  LknImporter -> LknImporter : Calcula fecha_modificada para Turno 3 00-06
+  LknImporter -> LknImporter : Conserva fecha_modificada = fecha_operativa
   LknImporter -> DB : Consulta maquina_pieza_mapeo vigente
   DB --> LknImporter : celda + pieza por maquina
   LknImporter -> DB : Reemplaza produccion_hora por fecha_modificada
@@ -37,8 +37,8 @@ loop Cada LKN_SYNC_SECONDS si SYNC_SOURCE=lkn y LKN_AUTO_SYNC_ENABLED=true
   deactivate LknImporter
 end
 
-loop Cada 10 segundos si fecha = hoy
-  Frontend -> API : GET /api/dashboard?fecha=hoy
+loop Cada 10 segundos si fecha = dia operativo actual
+  Frontend -> API : GET /api/dashboard?fecha=dia_operativo
   activate API
   API -> DB : Consulta datos actualizados
   activate DB

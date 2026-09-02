@@ -1,5 +1,35 @@
 # DEPLOY_LOG - FP_Soldadura
 
+## 2026-09-02
+
+- Cambio preparado y validado en modo Test:
+  - El importador LKN deja de corregir dos veces el cruce de Turno 3: copia `fecha_operativa` a `fecha_modificada` y consulta solo la fecha operativa solicitada.
+  - El filtro de horas futuras contempla que `00-06` ocurre en el calendario siguiente dentro del mismo dia operativo.
+  - El frontend abre y refresca el dia operativo anterior durante la madrugada.
+  - Los positivos con `ultima_lectura < fecha_hora_desde` se persisten como cero para limpiar residuos sin ocultar la pieza.
+- Migracion aplicada sobre `ferrosider_produccion_soldadura_test`:
+  - Se reimportaron con `replaceDate=true` los dias `2026-08-26` a `2026-09-01`.
+  - Se cargaron 10.344 filas de 59/62 maquinas segun disponibilidad de cada dia.
+  - Se neutralizaron 1.062 positivos anticipados, equivalentes a 27.657 unidades residuales.
+  - Para los siete dias, la cantidad de filas y el total persistido coinciden exactamente con LKN menos los positivos anticipados; no quedaron fechas origen distintas de `fecha_modificada`.
+  - Para `2026-09-01`, cada bucket `00-06` contiene las 62 maquinas y el Dashboard devuelve total Turno 3 `3680`.
+  - Para el dia actual `2026-09-02`, se importaron 682 filas iniciadas y se omitieron 806 filas futuras; no quedo ninguna fila de la proxima madrugada.
+  - Prueba HTTP sobre backend corregido en puerto temporal `3002`: `/api/health` informo `operationalDate=2026-09-02`, `/api/live-sync/status` informo `source=lkn` sin errores y `/api/dashboard?fecha=2026-09-01` devolvio 62 filas, total `31460` y Turno 3 `3680`.
+- Operacion aplicada sobre `ferrosider_produccion_soldadura`:
+  - Se creo el respaldo recuperable `produccion_hora_backup_20260902_fecha_operativa_fix` con 8.564 filas del rango `2026-08-26` a `2026-09-02` y total previo `205666`.
+  - `npm --prefix backend run db:init` finalizo correctamente contra la base productiva.
+  - Se sembraron 62 mapeos explicitos LKN con vigencia desde `2026-08-26`, sin maquinas omitidas.
+  - Se reimportaron con `replaceDate=true` los siete dias historicos `2026-08-26` a `2026-09-01`; sus filas y totales coinciden con la validacion de Test y no quedaron fechas operativas desplazadas.
+  - El dashboard productivo `2026-09-01` devuelve 62 filas, total `31460` y Turno 3 `3680`.
+  - El dia actual no se recargo todavia porque el scheduler productivo sigue ejecutando la version anterior y lo volveria a sobrescribir.
+- Hallazgo pendiente de origen:
+  - LKN entrega cantidades repetidas en tags TUCKER distintos; el caso `2026-08-31 17:00` contiene seis filas independientes con cantidad `20`.
+  - Para corregir esa repeticion sin perder combinaciones validas, Node-RED/PLC debe informar el conjunto activo o poner en cero los tags no trabajados.
+- Pendiente antes de Produccion:
+  - Desplegar/reiniciar el backend/frontend corregidos en el servidor web.
+  - Reimportar el dia operativo actual despues del reinicio.
+  - Validar una madrugada real y revisar el estado de sincronizacion LKN.
+
 ## 2026-08-04
 
 - Cambio preparado en modo Test:

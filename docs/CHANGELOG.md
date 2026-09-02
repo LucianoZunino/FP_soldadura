@@ -1,5 +1,20 @@
 # CHANGELOG - FP_Soldadura
 
+## 2026-09-02
+
+- El frontend usa el dia operativo como fecha inicial y como criterio de refresco vivo: entre `00:00` y `05:59` mantiene visible el dia anterior para completar el Turno 3.
+- `POST /api/import` y la importacion LKN sin fecha explicita usan tambien el dia operativo actual, evitando que una actualizacion manual durante la madrugada apunte al dia calendario nuevo.
+- Se corrige la doble conversion de fecha LKN: `fecha_operativa` ya incluye `00-06` dentro del dia operativo anterior, por lo que el importador deja de leer el dia siguiente y deja de restar otro dia al guardar `fecha_modificada`.
+- El filtro de horas futuras entiende el cruce operativo: antes de medianoche mantiene ocultos `00-06` del calendario siguiente y durante la madrugada habilita cada bucket solamente cuando comienza.
+- Los positivos residuales de LKN cuya `ultima_lectura` es anterior al inicio de su bucket se guardan como produccion `0` en vez de eliminar la fila completa. Asi las combinaciones sin produccion permanecen visibles y no heredan una cantidad anticipada.
+- La sincronizacion LKN informa `prematurePositiveRowsReset` y `prematureQuantityDiscarded` para auditar filas y cantidades residuales neutralizadas.
+- Se agregan pruebas automaticas para el cruce operativo `00-06` y para la neutralizacion de positivos anticipados.
+
+## 2026-08-13
+
+- Se detecta que los buckets cuya `ultima_lectura` es anterior a `fecha_hora_desde` pueden contener valores residuales que Node-RED precarga antes de que comience la hora correspondiente.
+- Se confirma que Node-RED recorre las 24 posiciones horarias del PLC y conserva el positivo anterior cuando recibe cero; la correccion completa de positivos residuales requiere ajustar ese flujo de origen.
+
 ## 2026-08-04
 
 - Se agrega `produccion_hora.fecha_modificada` como fecha operativa de consulta del dashboard.
@@ -10,6 +25,7 @@
 - En modo Test se valida LKN contra `ferrosider_produccion_soldadura_test` para `2026-07-28` y `2026-07-29`.
 - Se deja la configuracion preparada para seguir consumiendo desde LKN en produccion (`SYNC_SOURCE=lkn`, `LKN_AUTO_SYNC_ENABLED=true`) y se desactiva/comenta el proceso CSV vivo.
 - La grilla del frontend muestra `0` explicitamente en las horas sin produccion, en lugar de dejar la celda vacia.
+- La interpretacion de `fecha_operativa` documentada en esta version queda corregida por el relevamiento del 2026-09-02: LKN ya entrega la fecha operativa ajustada y no debe restarse nuevamente.
 
 ## 2026-07-23
 

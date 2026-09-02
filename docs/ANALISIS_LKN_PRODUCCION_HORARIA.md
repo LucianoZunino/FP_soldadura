@@ -128,6 +128,14 @@ Y la fecha operativa se calcula así:
 - antes de las 06:00, el flujo resta un día
 - o sea, la madrugada pertenece al día operativo anterior
 
+Validacion directa del 2026-09-02:
+
+- `fecha_operativa=2026-09-02, hora_desde=00:00` tiene
+  `fecha_hora_desde=2026-09-03 00:00`;
+- por lo tanto, `fecha_operativa` ya es la clave final del dashboard;
+- leer tambien `fecha_operativa + 1` y restar un dia por segunda vez desplaza la
+  madrugada valida y puede introducir buckets futuros del dia siguiente.
+
 Esto es consistente con el modelo actual del proyecto.
 
 ### 5. Regla importante de protección contra ceros
@@ -152,6 +160,51 @@ Si se migra a `lkn_soft.produccion_horaria`, conviene decidir explícitamente si
 
 - se respeta esta semántica de negocio
 - o si nuestra capa local seguirá permitiendo que un cero reemplace un positivo
+
+### 6. Positivos residuales en buckets futuros
+
+El 2026-08-13 se confirmo en el flujo activo que cada rama recorre las 24 posiciones
+horarias del PLC en cada ciclo. Cuando cambia la fecha operativa o se reinicia el
+flujo, las claves de contexto son nuevas y se pueden insertar valores residuales en
+horas que todavia no comenzaron.
+
+Luego, la proteccion contra ceros conserva esos positivos aunque el PLC entregue
+cero cuando llega la hora real. Se verifico el caso `CELDA_6_GOR_SUP_RH_OP10` del
+2026-08-07: los buckets 16:00-19:00 quedaron positivos con una ultima lectura de
+aproximadamente las 09:03.
+
+Como defensa parcial, FP_Soldadura convierte la cantidad positiva a `0` cuando
+`ultima_lectura` es anterior a `fecha_hora_desde`. La fila se conserva para que la
+combinacion de celda/pieza siga visible, pero el positivo anticipado no contribuya
+a la produccion. La sincronizacion informa cuantas filas y unidades fueron
+neutralizadas mediante `prematurePositiveRowsReset` y
+`prematureQuantityDiscarded`.
+
+Esta defensa evita importar buckets positivos que nunca fueron leidos dentro de su
+propia franja, pero no puede reconstruir un cero que Node-RED ya descarto despues
+de iniciada la hora si la fuente actualiza tambien la marca `ultima_lectura`.
+
+La correccion definitiva debe hacerse en Node-RED:
+
+- no persistir posiciones horarias futuras;
+- permitir que el cero valido reemplace un positivo residual, idealmente con un
+  debounce corto para lecturas transitorias;
+- conservar una lectura cruda o una marca de validacion para poder auditar el valor
+  finalmente recibido desde el PLC.
+
+### 7. Repeticion entre conjuntos TUCKER
+
+La validacion directa confirma que FP_Soldadura no replica una fila hacia varias
+piezas. LKN entrega una fila independiente por conjunto y tag. Por ejemplo, para
+`fecha_operativa=2026-08-31, hora_desde=17:00`, las seis maquinas TUCKER
+(`E02` a `E07`) guardan cantidad `20` en seis tags distintos.
+
+Como esas filas tienen una `ultima_lectura` posterior al comienzo del bucket, la
+defensa contra positivos anticipados no puede distinguir cual conjunto estuvo
+realmente activo. Resolver ese caso requiere que Node-RED/PLC entregue una marca de
+conjunto activo o que deje en cero los tags de los conjuntos no trabajados. Elegir
+una pieza por igualdad de cantidades en el importador eliminaria produccion valida
+cuando varios componentes se trabajan realmente en combinacion.
 
 ## Compatibilidad con el modelo actual
 

@@ -141,13 +141,13 @@ Tablas base:
 
 Relaciones funcionales:
 
-- una fila de `produccion_hora` representa una cantidad producida en una fecha origen, fecha operativa corregida (`fecha_modificada`), turno, tramo horario, celda y pieza;
+- una fila de `produccion_hora` representa una cantidad producida en una fecha de fuente, fecha operativa de consulta (`fecha_modificada`), turno, tramo horario, celda y pieza;
 - `celda` y `pieza` actuan como catalogos normalizados;
 - `articulo_final` guarda el codigo y la descripcion del articulo terminado;
 - `pieza_articulo_final` modela la relacion muchos-a-muchos entre componente y articulo final;
 - `celda_pieza_articulo_final` modela el mapeo operativo entre una pieza productiva concreta en una celda y su articulo final visible en reportes;
 - `maquina_pieza_mapeo` traduce `lkn_soft.produccion_horaria.maquina` a `celda + pieza` con vigencia por fecha, permitiendo que una maquina cambie de pieza sin modificar la lectura historica;
-- `fecha_modificada` permite que la madrugada `00-06` del Turno 3 se consulte en el dia operativo anterior, aunque LKN la entregue con fecha calendario del dia siguiente;
+- `fecha_modificada` permite unificar la fecha de consulta entre fuentes. LKN ya entrega `fecha_operativa` corregida: una fila `fecha_operativa=2026-09-02, hora=00:00` corresponde al calendario `2026-09-03 00:00`, pero sigue perteneciendo al dia operativo `2026-09-02`;
 - `turno` define las franjas T1, T2 y T3.
 
 ## Flujo de datos
@@ -164,13 +164,14 @@ Relaciones funcionales:
 
 1. El backend lee `SYNC_SOURCE`; el valor operativo esperado es `lkn`.
 2. Con `SYNC_SOURCE=lkn`, `POST /api/live-sync` y el scheduler LKN leen `lkn_soft.produccion_horaria`.
-3. El importador lee la fecha solicitada y el dia siguiente para poder completar el cruce de Turno 3.
-4. Para `id_turno=3` y horas `00-06`, guarda `fecha_modificada` como el dia anterior.
+3. El importador lee unicamente la `fecha_operativa` solicitada; esa fecha ya contiene `06-24` del mismo dia calendario y `00-06` del calendario siguiente.
+4. En modo LKN guarda `fecha_modificada = fecha_operativa` sin aplicar una segunda resta de dia.
 5. `GET /api/dashboard` consulta por `fecha_modificada`, no por la fecha origen LKN.
 6. Para el dia operativo actual, la sincronizacion viva no importa franjas horarias futuras.
-7. Si hay una sincronizacion en curso, el backend reutiliza el resultado en vuelo para evitar escrituras concurrentes innecesarias.
+7. Si LKN trae una cantidad positiva cuya `ultima_lectura` es anterior al comienzo del bucket, el importador conserva la fila con cantidad `0` para neutralizar el residual sin ocultar la combinacion celda/pieza.
+8. Si hay una sincronizacion en curso, el backend reutiliza el resultado en vuelo para evitar escrituras concurrentes innecesarias.
 
-El frontend puede refrescar automaticamente el Dashboard del dia actual leyendo `/api/dashboard` cada 10 segundos. Ese refresco visual no escribe en base; la escritura automatica queda a cargo del scheduler backend de la fuente configurada o del endpoint de sincronizacion que corresponda.
+El frontend puede refrescar automaticamente el Dashboard del dia operativo actual leyendo `/api/dashboard` cada 10 segundos. Entre `00:00` y `05:59`, tanto el frontend como el backend consideran actual al dia anterior para mantener visible y actualizada la segunda parte del Turno 3. Ese refresco visual no escribe en base; la escritura automatica queda a cargo del scheduler backend de la fuente configurada o del endpoint de sincronizacion que corresponda.
 
 ### Importacion de articulos finales
 
@@ -192,7 +193,7 @@ El frontend puede refrescar automaticamente el Dashboard del dia actual leyendo 
 
 ### Endpoints
 
-- `GET /api/health`
+- `GET /api/health` devuelve la fecha calendario (`date`) y la fecha operativa (`operationalDate`).
 - `POST /api/import`
 - `POST /api/import-articulos`
 - `POST /api/live-sync`
@@ -275,7 +276,7 @@ FP_Soldadura/
 - La logica del frontend esta concentrada en `frontend/src/main.jsx`; si crece, conviene separar componentes y hooks.
 - El backend crea el acceso a base de forma simple; si aumenta el trafico o la cantidad de consultas, conviene revisar reutilizacion del pool y manejo de errores.
 - El formato CSV es parte del contrato real del sistema; cualquier cambio en columnas o indices debe tratarse como cambio de integracion.
-- Al consumir LKN, la regla critica es `fecha_modificada`: sin esa correccion, Turno 3 cruza mal el dia calendario.
+- Al consumir LKN, la regla critica es no corregir dos veces el cruce: `fecha_operativa` ya representa el dia operativo y se copia a `fecha_modificada`.
 - La relacion componente -> articulo final no es uno a uno en todos los casos; cualquier vista que muestre "Articulo final" debe contemplar multiples coincidencias.
 - La produccion historica actual mezcla nombres operativos y codigos tecnicos en `pieza.descripcion`; por eso el backend resuelve articulos finales priorizando `celda_pieza_articulo_final` y usa `pieza_articulo_final` solo como fallback por componente.
 - El Excel de celdas no lista todas las operaciones intermedias: en general representa la ultima operacion/subproceso que entrega el articulo final. Las operaciones productivas previas que no aparecen en el Excel se heredan al mismo articulo final mediante reglas operativas por `celda + pieza`.

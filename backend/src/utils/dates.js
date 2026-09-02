@@ -68,8 +68,19 @@ function timeToMinutes(value) {
 }
 
 function isFutureHourForDate(fecha, horaDesde, now = new Date()) {
-  if (normalizeDate(fecha) !== todayIsoDate(now)) {
+  const operationalDate = normalizeDate(fecha);
+
+  if (operationalDate !== currentOperationalDate(now)) {
     return false;
+  }
+
+  const calendarDate = timeToMinutes(horaDesde) < 360
+    ? nextIsoDate(operationalDate)
+    : operationalDate;
+  const today = todayIsoDate(now);
+
+  if (calendarDate !== today) {
+    return calendarDate > today;
   }
 
   return timeToMinutes(horaDesde) > timeToMinutes(currentTimeString(now));

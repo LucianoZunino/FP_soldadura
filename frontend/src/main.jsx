@@ -30,11 +30,16 @@ const navItems = [
   { id: 'exportar', label: 'Exportar', icon: Download }
 ];
 
-function today() {
-  const now = new Date();
-  const offsetMs = now.getTimezoneOffset() * 60 * 1000;
+function currentOperationalDate(value = new Date()) {
+  const date = new Date(value);
 
-  return new Date(now.getTime() - offsetMs).toISOString().slice(0, 10);
+  if (date.getHours() < 6) {
+    date.setDate(date.getDate() - 1);
+  }
+
+  const offsetMs = date.getTimezoneOffset() * 60 * 1000;
+
+  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 10);
 }
 
 async function fetchJson(path, options) {
@@ -385,7 +390,7 @@ function ProductionTable({ dashboard, shiftId = null, compact = false, stickyBot
 }
 
 function DashboardView({ dashboard, date, onDateChange, onImport, onImportArticles, importing, importingArticles, sidebarCollapsed, onToggleSidebar }) {
-  const isToday = date === today();
+  const isCurrentOperationalDate = date === currentOperationalDate();
 
   return (
     <main className="content">
@@ -395,7 +400,7 @@ function DashboardView({ dashboard, date, onDateChange, onImport, onImportArticl
           <DateQueryControl date={date} onDateChange={onDateChange} />
           <button className="primaryButton" onClick={onImport} disabled={importing}>
             {importing ? <Loader2 className="spin" size={16} /> : <RefreshCcw size={16} />}
-            {isToday ? 'Actualizar vivo' : 'Importar CSV'}
+            {isCurrentOperationalDate ? 'Actualizar vivo' : 'Importar CSV'}
           </button>
           <button className="primaryButton secondaryButton" onClick={onImportArticles} disabled={importingArticles}>
             {importingArticles ? <Loader2 className="spin" size={16} /> : <Database size={16} />}
@@ -560,7 +565,7 @@ function ExportView({ dashboard, date, sidebarCollapsed, onToggleSidebar }) {
 
 function App() {
   const [activeView, setActiveView] = useState('dashboard');
-  const [selectedDate, setSelectedDate] = useState(today());
+  const [selectedDate, setSelectedDate] = useState(currentOperationalDate());
   const [shiftId, setShiftId] = useState('2');
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dashboard, setDashboard] = useState(null);
@@ -595,10 +600,10 @@ function App() {
     setError('');
 
     try {
-      const isToday = selectedDate === today();
-      const result = await fetchJson(isToday ? '/api/live-sync' : '/api/import', {
+      const isCurrentOperationalDate = selectedDate === currentOperationalDate();
+      const result = await fetchJson(isCurrentOperationalDate ? '/api/live-sync' : '/api/import', {
         method: 'POST',
-        body: JSON.stringify(isToday ? {} : { fecha: selectedDate })
+        body: JSON.stringify(isCurrentOperationalDate ? {} : { fecha: selectedDate })
       });
 
       if (result.fecha !== selectedDate) {
@@ -635,7 +640,7 @@ function App() {
   }, [selectedDate]);
 
   useEffect(() => {
-    if (!AUTO_DASHBOARD_REFRESH || activeView !== 'dashboard' || selectedDate !== today()) {
+    if (!AUTO_DASHBOARD_REFRESH || activeView !== 'dashboard' || selectedDate !== currentOperationalDate()) {
       return undefined;
     }
 

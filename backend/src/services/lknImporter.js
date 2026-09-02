@@ -1,10 +1,9 @@
 const { createPool } = require('../config/db');
 const { getEnv } = require('../config/env');
 const {
+  currentOperationalDate,
   isFutureHourForDate,
-  nextIsoDate,
   normalizeDate,
-  previousIsoDate,
   todayIsoDate
 } = require('../utils/dates');
 
@@ -40,22 +39,36 @@ function sourceDate(value) {
   return normalizeDate(String(value).slice(0, 10));
 }
 
-function timeToMinutes(value) {
-  const [hours, minutes] = String(value).split(':').map(Number);
-
-  return (hours * 60) + (minutes || 0);
-}
-
 function resolveTurnoId(turno) {
   return TURNOS[String(turno || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase()];
 }
 
-function resolveFechaModificada(fechaOrigen, idTurno, horaDesde) {
-  if (idTurno === 3 && timeToMinutes(horaDesde) < 360) {
-    return previousIsoDate(fechaOrigen);
+function resolveFechaModificada(fechaOperativa) {
+  // LKN already assigns 00-06 to the previous operational day. Applying the
+  // shift correction again would move valid production back one extra day.
+  return fechaOperativa;
+}
+
+function sanitizePrematurePositive(mapped, sourceRow) {
+  const cantidad = Number(mapped.cantidad || 0);
+  const isPremature = Number(sourceRow.lectura_anticipada) === 1;
+
+  if (!isPremature || cantidad <= 0) {
+    return {
+      record: mapped,
+      reset: false,
+      discardedQuantity: 0
+    };
   }
 
-  return fechaOrigen;
+  return {
+    record: {
+      ...mapped,
+      cantidad: 0
+    },
+    reset: true,
+    discardedQuantity: cantidad
+  };
 }
 
 function quoteIdentifier(identifier) {
@@ -161,7 +174,7 @@ function resolveMappedRecord(row, catalogMaps, machineMappings = new Map()) {
   const fecha = sourceDate(row.fecha_operativa);
   const idTurno = resolveTurnoId(row.turno);
   const horaDesde = formatTime(row.hora_desde);
-  const fechaModificada = resolveFechaModificada(fecha, idTurno, horaDesde);
+  const fechaModificada = resolveFechaModificada(fecha);
 
   if (explicitMapping) {
     return {
@@ -435,8 +448,7 @@ async function getLknMachineMappings(options = {}) {
 }
 
 async function importLknProduction(options = {}) {
-  const fecha = normalizeDate(options.fecha || todayIsoDate());
-  const fechaSiguiente = nextIsoDate(fecha);
+  const fecha = normalizeDate(options.fecha || currentOperationalDate());
   const sourceSchema = getEnv('LKN_DB_NAME', 'lkn_soft');
   const replaceDate = options.replaceDate !== false;
   const skipFutureHours = options.skipFutureHours !== false;
@@ -447,22 +459,36 @@ async function importLknProduction(options = {}) {
     const catalogMaps = await getCatalogMaps(connection);
     const machineMappings = await getMachineMappings(connection, fecha);
     const [sourceRows] = await connection.execute(
-      `SELECT fecha_operativa, maquina, hora_desde, hora_hasta, turno, cantidad, actualizado_en
+      `SELECT
+          fecha_operativa,
+          maquina,
+          hora_desde,
+          hora_hasta,
+          turno,
+          cantidad,
+          fecha_hora_desde,
+          ultima_lectura,
+          actualizado_en,
+          CASE
+            WHEN ultima_lectura < fecha_hora_desde THEN 1
+            ELSE 0
+          END AS lectura_anticipada
        FROM ${quoteIdentifier(sourceSchema)}.produccion_horaria
-       WHERE fecha_operativa IN (?, ?)
-       ORDER BY fecha_operativa, maquina, hora_desde`,
-      [fecha, fechaSiguiente]
+       WHERE fecha_operativa = ?
+       ORDER BY maquina, hora_desde`,
+      [fecha]
     );
 
     const mappedRecords = [];
     const failures = [];
     let futureRowsSkipped = 0;
-    let operationalDateRowsSkipped = 0;
+    let prematurePositiveRowsReset = 0;
+    let prematureQuantityDiscarded = 0;
     let explicitMappingsUsed = 0;
     let fallbackMappingsUsed = 0;
 
     for (const row of sourceRows) {
-      const mapped = resolveMappedRecord(row, catalogMaps, machineMappings);
+      let mapped = resolveMappedRecord(row, catalogMaps, machineMappings);
 
       if (mapped.error) {
         failures.push(mapped);
@@ -474,14 +500,20 @@ async function importLknProduction(options = {}) {
         continue;
       }
 
-      if (mapped.fechaModificada !== fecha) {
-        operationalDateRowsSkipped += 1;
-        continue;
-      }
-
       if (skipFutureHours && isFutureHourForDate(fecha, mapped.horaDesde)) {
         futureRowsSkipped += 1;
         continue;
+      }
+
+      // Node-RED can preserve a positive residual written before the bucket
+      // starts. Store it as zero instead of dropping the row so every mapped
+      // piece remains visible and only an in-window reading can contribute.
+      const sanitized = sanitizePrematurePositive(mapped, row);
+      mapped = sanitized.record;
+
+      if (sanitized.reset) {
+        prematurePositiveRowsReset += 1;
+        prematureQuantityDiscarded += sanitized.discardedQuantity;
       }
 
       mappedRecords.push(mapped);
@@ -500,7 +532,8 @@ async function importLknProduction(options = {}) {
         sourceRows: sourceRows.length,
         rowsImported: 0,
         futureRowsSkipped,
-        operationalDateRowsSkipped,
+        prematurePositiveRowsReset,
+        prematureQuantityDiscarded,
         failures,
         skipped: true,
         reason: 'mapping-failures'
@@ -557,7 +590,8 @@ async function importLknProduction(options = {}) {
       explicitMappingsUsed,
       fallbackMappingsUsed,
       futureRowsSkipped,
-      operationalDateRowsSkipped,
+      prematurePositiveRowsReset,
+      prematureQuantityDiscarded,
       replaceDate,
       skipped: false
     };
@@ -577,7 +611,9 @@ async function importLknProduction(options = {}) {
 module.exports = {
   getLknMachineMappings,
   importLknProduction,
+  resolveFechaModificada,
   resolveMachineTarget,
+  sanitizePrematurePositive,
   seedLknMachineMappings,
   upsertLknMachineMapping
 };

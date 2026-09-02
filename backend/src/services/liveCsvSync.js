@@ -1,5 +1,5 @@
 const { getEnv, requireEnv } = require('../config/env');
-const { todayIsoDate } = require('../utils/dates');
+const { currentOperationalDate } = require('../utils/dates');
 const { getCsvSourceInfo, importCsv } = require('./csvImporter');
 
 let intervalId = null;
@@ -27,11 +27,11 @@ async function runLiveCsvSync(options = {}) {
 
   if (
     lastManualImport &&
-    lastManualImport.fecha === todayIsoDate() &&
+    lastManualImport.fecha === currentOperationalDate() &&
     sourceInfo.sourceMtimeMs <= lastManualImport.sourceMtimeMs
   ) {
     return {
-      fecha: todayIsoDate(),
+      fecha: currentOperationalDate(),
       csvPath,
       ...sourceInfo,
       live: true,
@@ -46,7 +46,7 @@ async function runLiveCsvSync(options = {}) {
 
   const result = await importCsv({
     csvPath,
-    fecha: todayIsoDate(),
+    fecha: currentOperationalDate(),
     stableRead: true,
     sampleCount: 3,
     sampleDelayMs: 1000,
@@ -109,7 +109,7 @@ async function syncLiveCsv(options = {}) {
 }
 
 function registerManualImport(result) {
-  if (!result || result.live || result.fecha !== todayIsoDate()) {
+  if (!result || result.live || result.fecha !== currentOperationalDate()) {
     return;
   }
 

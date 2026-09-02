@@ -17,7 +17,7 @@ const {
 } = require('./services/lknImporter');
 const { getLknAutoSyncStatus, runLknAutoSync, startLknAutoSync } = require('./services/lknAutoSync');
 const { getCatalogs, getDashboard, getShift } = require('./services/productionService');
-const { normalizeDate, todayIsoDate } = require('./utils/dates');
+const { currentOperationalDate, normalizeDate, todayIsoDate } = require('./utils/dates');
 
 const app = express();
 const port = Number(getEnv('PORT', 3001));
@@ -45,15 +45,21 @@ app.use(cors());
 app.use(express.json());
 
 app.get('/api/health', (req, res) => {
-  res.json({ ok: true, date: todayIsoDate() });
+  res.json({
+    ok: true,
+    date: todayIsoDate(),
+    operationalDate: currentOperationalDate()
+  });
 });
 
 app.post('/api/import', async (req, res, next) => {
   try {
-    const requestedDate = normalizeDate(req.body?.fecha || req.query.fecha);
+    const requestedDate = normalizeDate(
+      req.body?.fecha || req.query.fecha || currentOperationalDate()
+    );
     const csvPath = req.body?.csvPath;
 
-    if (!csvPath && requestedDate === todayIsoDate()) {
+    if (!csvPath && requestedDate === currentOperationalDate()) {
       res.json(await runConfiguredLiveSync({ fecha: requestedDate, force: true }));
       return;
     }

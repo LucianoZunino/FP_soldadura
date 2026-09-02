@@ -33,7 +33,7 @@ VITE_AUTO_DASHBOARD_REFRESH=true
 
 La fuente viva se selecciona con `SYNC_SOURCE`.
 
-La fuente viva esperada es LKN, con correccion de fecha operativa en `fecha_modificada` para el Turno 3:
+La fuente viva esperada es LKN. `lkn_soft.produccion_horaria.fecha_operativa` ya agrupa la madrugada `00-06` con el dia operativo anterior, por lo que el importador conserva esa fecha sin volver a restar un dia:
 
 ```env
 SYNC_SOURCE=lkn
@@ -105,7 +105,7 @@ Cuando se informa un nuevo mapeo, el backend cierra el mapeo activo anterior de 
 ## Notas operativas
 
 - Produccion debe quedar con `SYNC_SOURCE=lkn` una vez validada la correccion de Turno 3.
-- `fecha_modificada` es la fecha operativa usada por el dashboard; en Turno 3 mueve `00-06` al dia anterior.
+- `fecha_modificada` es la fecha operativa usada por el dashboard. En importaciones LKN copia directamente `fecha_operativa`, que ya contempla el cruce `00-06`.
 - `CSV_PATH` queda para importacion historica/manual; `LIVE_CSV_PATH` queda como fallback vivo.
 - El frontend apunta por defecto a `http://localhost:3001`.
 - Los cambios funcionales deberian reflejarse en `docs/CHANGELOG.md` y, si salen a uso real, tambien en `docs/DEPLOY_LOG.md`.
