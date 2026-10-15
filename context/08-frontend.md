@@ -49,6 +49,7 @@ No hay store global, cache persistente ni sincronizacion de filtros con URL.
 - El refresco de 10 segundos es silencioso y conserva la grilla visible.
 - Los errores de lectura o importacion aparecen en un toast con el mensaje de API.
 - Si nunca se obtuvo un dashboard, se presenta `Sin datos para mostrar`.
+- Si Resumen general recibe una fecha sin filas, muestra `No hay datos cargados en este entorno` y deshabilita la exportacion.
 - No existe boton generico de reintento; cambiar/consultar fecha, actualizar manualmente o esperar el siguiente refresco vuelve a ejecutar la solicitud.
 - Importar produccion e importar articulos tienen flags independientes para deshabilitar sus botones durante la operacion.
 - La exportacion XLSX informa errores en el mismo toast y bloquea su boton mientras se genera.

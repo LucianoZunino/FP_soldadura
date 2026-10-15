@@ -31,6 +31,7 @@
   - workbook reabierto correctamente y valores numericos coincidentes con el Dashboard;
   - 11 pruebas backend y build frontend aprobados.
 - Validacion de lectura contra la DB productiva para la misma fecha: 62 combinaciones exportables, mismos encabezados y workbook XLSX valido; no se escribieron datos productivos.
+- Se importo en Test la fecha operativa `2026-09-15` desde LKN: 1.488 filas, 62 maquinas, 81 positivos anticipados neutralizados y 62 filas visibles en Resumen general.
 - Este cambio de backend/frontend queda versionado para ambos entornos; requiere pull, build y reinicio del servidor web para estar activo en Produccion.
 - Modo: Test. No se modifico la pestana productiva ni sus tablas.
 - Flujo Test actualizado: `94735d01267fe806`, 15 ramas y 52 nodos.

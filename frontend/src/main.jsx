@@ -552,14 +552,26 @@ function GeneralSummaryView({ dashboard, date, onDateChange, onExport, exporting
         />
         <div className="toolbar">
           <DateQueryControl date={date} onDateChange={onDateChange} />
-          <button className="primaryButton" onClick={onExport} disabled={exporting} type="button">
+          <button
+            className="primaryButton"
+            onClick={onExport}
+            disabled={exporting || dashboard.rows.length === 0}
+            type="button"
+          >
             {exporting ? <Loader2 className="spin" size={16} /> : <FileSpreadsheet size={16} />}
             Exportar Excel
           </button>
         </div>
       </header>
 
-      <GeneralSummaryTable dashboard={dashboard} />
+      {dashboard.rows.length > 0 ? (
+        <GeneralSummaryTable dashboard={dashboard} />
+      ) : (
+        <section className="emptyState">
+          <Search size={20} />
+          No hay datos cargados en este entorno para el {formatDate(date)}
+        </section>
+      )}
     </main>
   );
 }
