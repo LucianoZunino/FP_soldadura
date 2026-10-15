@@ -369,6 +369,69 @@ select {
   table-layout: fixed;
 }
 
+.generalSummaryShell {
+  max-height: calc(100vh - 132px);
+}
+
+.generalSummaryTable {
+  border-collapse: separate;
+  border-spacing: 0;
+  min-width: 820px;
+  table-layout: fixed;
+  width: 100%;
+}
+
+.generalSummaryTable th,
+.generalSummaryTable td {
+  border-bottom: 1px solid #dbe3ee;
+  border-right: 1px solid #dbe3ee;
+  font-size: 12px;
+  height: 36px;
+  padding: 7px 10px;
+  text-align: center;
+}
+
+.generalSummaryTable th {
+  background: #d8dde3;
+  color: #07173a;
+  font-weight: 800;
+  position: sticky;
+  text-transform: none;
+  top: 0;
+  z-index: 2;
+}
+
+.generalSummaryTable th:first-child,
+.generalSummaryTable td:first-child {
+  border-left: 1px solid #dbe3ee;
+  width: 22%;
+}
+
+.generalSummaryTable th:nth-child(2),
+.generalSummaryTable td:nth-child(2) {
+  width: 26%;
+}
+
+.generalSummaryTable th:nth-child(n + 3),
+.generalSummaryTable td:nth-child(n + 3) {
+  width: 13%;
+}
+
+.generalSummaryTable td:first-child,
+.generalSummaryTable td:nth-child(2) {
+  font-weight: 600;
+  text-align: left;
+}
+
+.generalSummaryTable tbody tr:nth-child(even) td {
+  background: #f8fafc;
+}
+
+.generalSummaryTable td:last-child {
+  background: #eef4fb;
+  font-weight: 800;
+}
+
 .colCelda {
   width: 120px;
 }

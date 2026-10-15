@@ -24,6 +24,14 @@
 
 ## 2026-10-15 - Validacion Test
 
+- Resumen general validado contra `ferrosider_produccion_soldadura_test` para `2026-10-15`:
+  - 62 combinaciones celda/pieza visibles y exportadas;
+  - endpoint HTTP 200 con MIME XLSX y nombre de archivo por fecha;
+  - encabezados exactos `PIEZA_NUMERO`, `DESCRIPCION`, `PROD_T1`, `PROD_T2`, `PROD_T3`, `produccion_actual`;
+  - workbook reabierto correctamente y valores numericos coincidentes con el Dashboard;
+  - 11 pruebas backend y build frontend aprobados.
+- Validacion de lectura contra la DB productiva para la misma fecha: 62 combinaciones exportables, mismos encabezados y workbook XLSX valido; no se escribieron datos productivos.
+- Este cambio de backend/frontend queda versionado para ambos entornos; requiere pull, build y reinicio del servidor web para estar activo en Produccion.
 - Modo: Test. No se modifico la pestana productiva ni sus tablas.
 - Flujo Test actualizado: `94735d01267fe806`, 15 ramas y 52 nodos.
   - CELDA_7 usa `HORA[0]` para `00-01`.

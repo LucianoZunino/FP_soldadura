@@ -42,10 +42,10 @@ Solo contiene trabajo abierto. Las decisiones cerradas pertenecen a `docs/CHANGE
 - **Siguiente paso:** agregar estado de lectura/origen al staging y al modelo local antes de modificar la UI.
 - **Criterio de cierre:** API y Dashboard diferencian `CERO_CONFIRMADO` de `SIN_LECTURA`.
 
-## P1 - Formalizar despliegue web
+## P1 - Formalizar y completar despliegue web
 
 - **Problema:** no hay procedimiento versionado para pull, build, reinicio y rollback del servidor real.
-- **Impacto:** un push no permite demostrar que Produccion ejecuta el commit esperado.
+- **Impacto:** un push no permite demostrar que Produccion ejecuta el commit esperado; la proteccion de fuente vacia y el Resumen general no quedan activos hasta reiniciar/publicar.
 - **Evidencia:** `DEPLOY.md` debe dejar el gestor de procesos sin especificar.
 - **Siguiente paso:** relevar servicio, rutas, usuario tecnico y health checks sin publicar secretos.
 - **Criterio de cierre:** despliegue reproducible con verificacion de commit y rollback probado.

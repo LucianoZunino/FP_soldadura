@@ -29,6 +29,17 @@ Devuelve solo el estado del scheduler LKN: intervalo, ejecucion en curso, ultimo
 
 Devuelve la matriz diaria agregada y sus resumenes. Consulta `produccion_hora.fecha_modificada`.
 
+### `GET /api/resumen-general/excel?fecha=YYYY-MM-DD`
+
+Genera un archivo XLSX con una fila por combinacion celda/pieza y estas columnas exactas:
+
+- `PIEZA_NUMERO`: nombre de celda o maquina visible.
+- `DESCRIPCION`: descripcion de la pieza.
+- `PROD_T1`, `PROD_T2`, `PROD_T3`: total de cada turno.
+- `produccion_actual`: suma diaria de los tres turnos.
+
+La respuesta usa el MIME de Excel, nombre `resumen_general_<fecha>.xlsx`, autofiltro y valores numericos. Los datos provienen del mismo `getDashboard(fecha)` que alimenta la pantalla, incluyendo ocultamiento de horas futuras.
+
 ### `GET /api/turno?fecha=YYYY-MM-DD&turno=1|2|3`
 
 Devuelve el detalle del turno solicitado para la fecha operativa.
@@ -113,3 +124,4 @@ Crea o actualiza un mapeo temporal.
 - `backend/src/server.js`
 - `backend/src/services/lknImporter.js`
 - `backend/src/services/productionService.js`
+- `backend/src/services/summaryExportService.js`

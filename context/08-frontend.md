@@ -15,6 +15,7 @@ Las variables `VITE_*` se resuelven durante el build. Un cambio requiere reconst
 
 - **Dashboard:** matriz diaria por celda, pieza, articulo final, turno y hora.
 - **Turno:** detalle filtrado por turno.
+- **Resumen general:** totales T1, T2, T3 y dia por celda/pieza, con descarga XLSX.
 - **Historial:** consulta fechas seleccionadas.
 - **Detalle:** desglose operativo.
 - **Exportar:** genera CSV en navegador con separador punto y coma y BOM.
@@ -28,7 +29,7 @@ La navegacion no usa router ni URL por vista. `activeView` vive en `App`, por lo
 | Produccion y resumen | Respuesta de `GET /api/dashboard` |
 | Fecha seleccionada | Estado local `selectedDate` |
 | Turno visible | Estado local `shiftId` |
-| Vista y sidebar | Estado local del componente `App` |
+| Vista, exportacion y sidebar | Estado local del componente `App` |
 | Filtros de detalle | Estados locales `cell` y `piece` |
 | Ultima actualizacion | Hora del navegador al completar una lectura |
 
@@ -38,7 +39,7 @@ No hay store global, cache persistente ni sincronizacion de filtros con URL.
 
 - La fecha inicial es el dia operativo, no siempre el dia calendario.
 - Entre `00:00` y `05:59`, el dia operativo visible corresponde al anterior.
-- Para el dia operativo actual, el Dashboard vuelve a consultar `/api/dashboard` cada 10 segundos.
+- Para el dia operativo actual, Dashboard y Resumen general vuelven a consultar `/api/dashboard` cada 10 segundos.
 - El refresco automatico es de solo lectura; no dispara sincronizaciones.
 - El boton de actualizacion manual llama `/api/live-sync` para hoy y `/api/import` para historicos.
 
@@ -50,6 +51,7 @@ No hay store global, cache persistente ni sincronizacion de filtros con URL.
 - Si nunca se obtuvo un dashboard, se presenta `Sin datos para mostrar`.
 - No existe boton generico de reintento; cambiar/consultar fecha, actualizar manualmente o esperar el siguiente refresco vuelve a ejecutar la solicitud.
 - Importar produccion e importar articulos tienen flags independientes para deshabilitar sus botones durante la operacion.
+- La exportacion XLSX informa errores en el mismo toast y bloquea su boton mientras se genera.
 
 ## Presentacion de ceros
 
@@ -65,7 +67,9 @@ La UI muestra la relacion resuelta por backend. Cuando no existe articulo final 
 - La vista Turno selecciona por `shift.id`.
 - Detalle filtra por texto de celda y pieza y toma la primera fila coincidente.
 - Las celdas horarias se identifican por `turno:hora_desde`; las filas combinan celda y pieza.
-- El boton rotulado `Exportacion a Excel` descarga en realidad un archivo CSV, no XLSX.
+- Resumen general reutiliza `dashboard.rows`: `celda` se muestra como `PIEZA_NUMERO`, `pieza` como `DESCRIPCION`, los totales de turno como `PROD_T1..T3` y `total` como `produccion_actual`.
+- `Exportar Excel` descarga `GET /api/resumen-general/excel` como un `.xlsx` real con el mismo orden y valores visibles.
+- Las exportaciones existentes de grilla y turno estan rotuladas como CSV; solamente `Exportar Excel` del Resumen general genera XLSX.
 
 ## Presentacion y responsive
 
@@ -88,3 +92,4 @@ El resultado queda en `frontend/dist/`. La publicacion depende del mecanismo del
 - `frontend/src/styles.css`
 - `frontend/package.json`
 - `backend/src/services/productionService.js`
+- `backend/src/services/summaryExportService.js`

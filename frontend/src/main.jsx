@@ -25,6 +25,7 @@ const AUTO_DASHBOARD_REFRESH = import.meta.env.VITE_AUTO_DASHBOARD_REFRESH !== '
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: Grid3X3 },
   { id: 'turno', label: 'Produccion', icon: ClipboardList },
+  { id: 'resumen', label: 'Resumen general', icon: FileSpreadsheet },
   { id: 'historial', label: 'Historial', icon: History },
   { id: 'detalle', label: 'Detalle', icon: BarChart3 },
   { id: 'exportar', label: 'Exportar', icon: Download }
@@ -54,6 +55,26 @@ async function fetchJson(path, options) {
   }
 
   return payload;
+}
+
+async function downloadFile(path, filename) {
+  const response = await fetch(`${API_BASE}${path}`);
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.error || 'No se pudo generar el archivo');
+  }
+
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function formatDate(value) {
@@ -446,7 +467,7 @@ function ShiftView({ dashboard, date, onDateChange, shiftId, onShiftChange, side
       <div className="actionRow">
         <button className="primaryButton" onClick={() => downloadCsv(`produccion_turno_${shiftId}_${date}.csv`, dashboard, shiftId)}>
           <FileSpreadsheet size={16} />
-          Exportar a Excel
+          Exportar CSV
         </button>
       </div>
     </main>
@@ -484,6 +505,61 @@ function HistoryView({ dashboard, date, onDateChange, sidebarCollapsed, onToggle
           </details>
         ))}
       </div>
+    </main>
+  );
+}
+
+function GeneralSummaryTable({ dashboard }) {
+  return (
+    <div className="tableShell generalSummaryShell">
+      <table className="generalSummaryTable">
+        <thead>
+          <tr>
+            <th>PIEZA_NUMERO</th>
+            <th>DESCRIPCION</th>
+            <th>PROD_T1</th>
+            <th>PROD_T2</th>
+            <th>PROD_T3</th>
+            <th>produccion_actual</th>
+          </tr>
+        </thead>
+        <tbody>
+          {dashboard.rows.map((row) => (
+            <tr key={`${row.idCelda}:${row.idPieza}`}>
+              <td>{row.celda}</td>
+              <td>{row.pieza}</td>
+              <td>{row.totalsByShift[1] || 0}</td>
+              <td>{row.totalsByShift[2] || 0}</td>
+              <td>{row.totalsByShift[3] || 0}</td>
+              <td>{row.total || 0}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function GeneralSummaryView({ dashboard, date, onDateChange, onExport, exporting, sidebarCollapsed, onToggleSidebar }) {
+  return (
+    <main className="content narrow">
+      <header className="topbar">
+        <HeaderTitle
+          title="Resumen general"
+          subtitle={`Produccion consolidada del ${formatDate(date)}`}
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={onToggleSidebar}
+        />
+        <div className="toolbar">
+          <DateQueryControl date={date} onDateChange={onDateChange} />
+          <button className="primaryButton" onClick={onExport} disabled={exporting} type="button">
+            {exporting ? <Loader2 className="spin" size={16} /> : <FileSpreadsheet size={16} />}
+            Exportar Excel
+          </button>
+        </div>
+      </header>
+
+      <GeneralSummaryTable dashboard={dashboard} />
     </main>
   );
 }
@@ -549,10 +625,10 @@ function ExportView({ dashboard, date, sidebarCollapsed, onToggleSidebar }) {
   return (
     <main className="content narrow">
       <header className="topbar">
-        <HeaderTitle title="Exportacion a Excel" subtitle="Archivo CSV separado por punto y coma" sidebarCollapsed={sidebarCollapsed} onToggleSidebar={onToggleSidebar} />
+        <HeaderTitle title="Exportacion CSV" subtitle="Archivo separado por punto y coma" sidebarCollapsed={sidebarCollapsed} onToggleSidebar={onToggleSidebar} />
         <button className="primaryButton" onClick={() => downloadCsv(`produccion_${date}.csv`, dashboard)}>
           <FileSpreadsheet size={16} />
-          Exportar grilla completa
+          Exportar grilla CSV
         </button>
       </header>
 
@@ -572,6 +648,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [importing, setImporting] = useState(false);
   const [importingArticles, setImportingArticles] = useState(false);
+  const [exportingSummary, setExportingSummary] = useState(false);
   const [error, setError] = useState('');
   const [lastUpdate, setLastUpdate] = useState('');
   async function loadDashboard(dateValue = selectedDate, options = {}) {
@@ -635,12 +712,32 @@ function App() {
     }
   }
 
+  async function exportGeneralSummary() {
+    setExportingSummary(true);
+    setError('');
+
+    try {
+      await downloadFile(
+        `/api/resumen-general/excel?fecha=${encodeURIComponent(selectedDate)}`,
+        `resumen_general_${selectedDate}.xlsx`
+      );
+    } catch (exportError) {
+      setError(exportError.message);
+    } finally {
+      setExportingSummary(false);
+    }
+  }
+
   useEffect(() => {
     loadDashboard(selectedDate);
   }, [selectedDate]);
 
   useEffect(() => {
-    if (!AUTO_DASHBOARD_REFRESH || activeView !== 'dashboard' || selectedDate !== currentOperationalDate()) {
+    if (
+      !AUTO_DASHBOARD_REFRESH ||
+      !['dashboard', 'resumen'].includes(activeView) ||
+      selectedDate !== currentOperationalDate()
+    ) {
       return undefined;
     }
 
@@ -682,6 +779,20 @@ function App() {
       return <ShiftView dashboard={dashboard} date={selectedDate} onDateChange={setSelectedDate} shiftId={shiftId} onShiftChange={setShiftId} sidebarCollapsed={sidebarCollapsed} onToggleSidebar={() => setSidebarCollapsed((value) => !value)} />;
     }
 
+    if (activeView === 'resumen') {
+      return (
+        <GeneralSummaryView
+          dashboard={dashboard}
+          date={selectedDate}
+          onDateChange={setSelectedDate}
+          onExport={exportGeneralSummary}
+          exporting={exportingSummary}
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() => setSidebarCollapsed((value) => !value)}
+        />
+      );
+    }
+
     if (activeView === 'historial') {
       return <HistoryView dashboard={dashboard} date={selectedDate} onDateChange={setSelectedDate} sidebarCollapsed={sidebarCollapsed} onToggleSidebar={() => setSidebarCollapsed((value) => !value)} />;
     }
@@ -705,7 +816,7 @@ function App() {
       sidebarCollapsed={sidebarCollapsed}
       onToggleSidebar={() => setSidebarCollapsed((value) => !value)}
     />;
-  }, [activeView, dashboard, importing, importingArticles, loading, selectedDate, shiftId]);
+  }, [activeView, dashboard, exportingSummary, importing, importingArticles, loading, selectedDate, shiftId]);
 
   return (
     <div className={sidebarCollapsed ? 'appShell sidebarCollapsed' : 'appShell'}>

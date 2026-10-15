@@ -17,6 +17,7 @@ const {
 } = require('./services/lknImporter');
 const { getLknAutoSyncStatus, runLknAutoSync, startLknAutoSync } = require('./services/lknAutoSync');
 const { getCatalogs, getDashboard, getShift } = require('./services/productionService');
+const { createGeneralSummaryExport } = require('./services/summaryExportService');
 const { currentOperationalDate, normalizeDate, todayIsoDate } = require('./utils/dates');
 
 const app = express();
@@ -169,6 +170,22 @@ app.get('/api/live-sync/status', (req, res) => {
 app.get('/api/dashboard', async (req, res, next) => {
   try {
     res.json(await getDashboard(req.query.fecha));
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get('/api/resumen-general/excel', async (req, res, next) => {
+  try {
+    const report = await createGeneralSummaryExport(req.query.fecha);
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader('Content-Disposition', `attachment; filename="${report.filename}"`);
+    res.setHeader('Content-Length', report.buffer.length);
+    res.send(report.buffer);
   } catch (error) {
     next(error);
   }

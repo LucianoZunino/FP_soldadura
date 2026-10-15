@@ -2,6 +2,10 @@
 
 ## 2026-10-15
 
+- Se agrega la vista `Resumen general` por fecha con columnas `PIEZA_NUMERO`, `DESCRIPCION`, `PROD_T1`, `PROD_T2`, `PROD_T3` y `produccion_actual`.
+- Se incorpora `GET /api/resumen-general/excel` para descargar esos mismos datos como XLSX real, con autofiltro, anchos de columna y valores numericos.
+- El Resumen general del dia operativo actual participa del refresco de solo lectura cada 10 segundos.
+- Las exportaciones historicas de grilla y turno pasan a rotularse correctamente como CSV para diferenciarlas del nuevo XLSX.
 - Se promueven a las 15 ramas Node-RED productivas el filtro de horas futuras, la ventana de 10 minutos para corregir ceros y la lectura `HORA[0]` de CELDA_7 en `00-01`.
 - El despliegue productivo queda automatizado con dry-run, validacion de huella, respaldo previo, verificacion posterior, modo idempotente y rollback explicito.
 - Se confirma con captura directa del PLC de CELDA_7 que el bloque `00-01` se acumula en `HORA[0]`, mientras `HORA[24]` permanece en cero.
