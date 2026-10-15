@@ -1,120 +1,76 @@
 # FP_Soldadura
 
-Sistema de captura, importacion y visualizacion de produccion horaria para soldadura.
+Dashboard industrial para capturar, normalizar y consultar produccion horaria de soldadura por celda, pieza, turno y articulo final.
 
-## Documentacion base
+La fuente viva principal es `lkn_soft.produccion_horaria`, alimentada por Node-RED desde PLC. El backend copia el dia operativo a una base propia y el frontend consume solamente la API. CSV queda disponible para importaciones historicas y contraste manual.
 
-- [CONTEXTO_PROYECTO.md](/C:/Users/lzunino/Desktop/FP_Soldadura/docs/CONTEXTO_PROYECTO.md)
-- [INDICE_DOCUMENTACION.md](/C:/Users/lzunino/Desktop/FP_Soldadura/docs/INDICE_DOCUMENTACION.md)
-- [CHANGELOG.md](/C:/Users/lzunino/Desktop/FP_Soldadura/docs/CHANGELOG.md)
-- [DEPLOY_LOG.md](/C:/Users/lzunino/Desktop/FP_Soldadura/docs/DEPLOY_LOG.md)
-- [AGENTS.md](/C:/Users/lzunino/Desktop/FP_Soldadura/AGENTS.md)
+## Stack
+
+- Backend: Node.js, Express y MySQL.
+- Frontend: React y Vite.
+- Integracion industrial: Node-RED y Ethernet/IP.
+- Fuentes auxiliares: CSV horario y Excel de articulos finales.
 
 ## Inicio rapido
 
-1. Instalar dependencias en raiz, `backend` y `frontend` si hace falta.
-2. Configurar `.env` a partir de `.env.example`.
-3. Inicializar la base con `npm run db:init`.
-4. Levantar el proyecto con `npm run dev`.
+Requisitos: Node.js compatible con las versiones de `package-lock.json`, npm, acceso a MySQL y variables de entorno locales.
 
-## Base local de test
-
-El backend carga primero `.env` de la raiz y despues `backend/.env` con prioridad. Para desarrollo local se puede usar `backend/.env` para apuntar a una base aislada, por ejemplo:
-
-```env
-DB_NAME=ferrosider_produccion_soldadura_test
+```powershell
+npm install
+npm --prefix backend install
+npm --prefix frontend install
+Copy-Item .env.example .env
+npm run db:init
+npm run dev
 ```
 
-Esta configuracion evita que las pruebas locales escriban sobre la tabla productiva. El frontend local puede activar o desactivar el refresco visual del dashboard con `frontend/.env.development.local`:
+Antes de ejecutar `db:init`, importaciones o servicios, confirmar si el trabajo corresponde a **Test** o **Produccion**. Para desarrollo local se recomienda `backend/.env` apuntando a una base aislada; ese archivo no se versiona.
 
-```env
-VITE_AUTO_DASHBOARD_REFRESH=true
+## Comandos
+
+```powershell
+npm run dev
+npm --prefix backend test
+npm run frontend:build
+npm run db:init
+node scripts\deploy-node-red-all-machines-test.js
+node scripts\deploy-node-red-all-machines-production.js
 ```
 
-La fuente viva se selecciona con `SYNC_SOURCE`.
+Los scripts Node-RED son `dry-run` por defecto. La operacion productiva y su rollback requieren confirmacion explicita; consultar [DEPLOY.md](./DEPLOY.md).
+Antes de ejecutarlos se debe definir `NODE_RED_BASE_URL` en la sesion local; la direccion interna no se versiona.
 
-La fuente viva esperada es LKN. `lkn_soft.produccion_horaria.fecha_operativa` ya agrupa la madrugada `00-06` con el dia operativo anterior, por lo que el importador conserva esa fecha sin volver a restar un dia:
+## Configuracion
 
-```env
-SYNC_SOURCE=lkn
-LKN_AUTO_SYNC_ENABLED=true
-LKN_SYNC_SECONDS=15
-LKN_DB_NAME=lkn_soft
-```
+`.env.example` enumera el contrato de configuracion sin valores sensibles. Variables principales:
 
-Estado de la sincronizacion viva configurada:
+- `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`.
+- `SYNC_SOURCE=lkn|csv`.
+- `LKN_DB_NAME`, `LKN_AUTO_SYNC_ENABLED`, `LKN_SYNC_SECONDS`.
+- `CSV_PATH`, `LIVE_CSV_PATH`, `LIVE_CSV_AUTO_SYNC_ENABLED`, `LIVE_REFRESH_SECONDS`.
+- `ARTICLES_XLSX_PATH`, `APP_TIME_ZONE`, `PORT`.
+- `VITE_API_BASE`, `VITE_AUTO_DASHBOARD_REFRESH`.
 
-```bash
-curl http://localhost:3001/api/live-sync/status
-```
+No versionar `.env`, credenciales, rutas personales ni respaldos con datos.
 
-Para rellenar una base de prueba desde LKN se puede usar:
+## Documentacion
 
-```bash
-curl -X POST http://localhost:3001/api/import-lkn \
-  -H "Content-Type: application/json" \
-  -d "{\"fecha\":\"YYYY-MM-DD\",\"replaceDate\":true}"
-```
-
-CSV queda como fallback vivo si se necesita contrastar contra el archivo compartido:
-
-```env
-SYNC_SOURCE=csv
-LIVE_CSV_PATH=\\192.168.3.223\Mantenimiento\CSV\produccion_sold_bk_1.csv
-LIVE_CSV_AUTO_SYNC_ENABLED=true
-LIVE_REFRESH_SECONDS=10
-LKN_AUTO_SYNC_ENABLED=false
-```
-
-En produccion, el proceso CSV vivo debe quedar comentado/desactivado:
-
-```env
-# LIVE_CSV_PATH=\\192.168.3.223\Mantenimiento\CSV\produccion_sold_bk_1.csv
-LIVE_CSV_AUTO_SYNC_ENABLED=false
-# LIVE_REFRESH_SECONDS=10
-```
-
-Estado del scheduler:
-
-```bash
-curl http://localhost:3001/api/lkn-sync/status
-```
-
-Para consultar o cambiar mapeos de maquina LKN a celda/pieza:
-
-```bash
-curl http://localhost:3001/api/lkn-mappings
-```
-
-```bash
-curl -X POST http://localhost:3001/api/lkn-mappings \
-  -H "Content-Type: application/json" \
-  -d "{\"maquina\":\"CELDA_4_X\",\"celda\":\"CELDA_4\",\"pieza\":\"PIEZA NUEVA\",\"fechaDesde\":\"YYYY-MM-DD\"}"
-```
-
-Cuando se informa un nuevo mapeo, el backend cierra el mapeo activo anterior de esa maquina hasta el dia previo a `fechaDesde`, salvo que se envie `closePrevious:false`.
+- [Mapa de contexto](./context/index.md): contrato tecnico vigente.
+- [Despliegue y rollback](./DEPLOY.md): procedimiento operativo.
+- [Pendientes](./BACKLOG.md): riesgos y trabajo abierto.
+- [Contribucion](./CONTRIBUTING.md): reglas de cambio y validacion.
+- [Changelog oficial](./docs/CHANGELOG.md): historial funcional integrado.
+- [Registro de despliegue](./docs/DEPLOY_LOG.md): evidencia de operaciones reales.
+- [Analisis LKN](./docs/ANALISIS_LKN_PRODUCCION_HORARIA.md): investigacion historica detallada.
 
 ## Estructura
 
-- `backend/`: API Express, importador CSV y acceso MySQL.
-- `frontend/`: dashboard React + Vite.
-- `docs/`: documentacion operativa y contexto del proyecto.
-- `logs/`: salidas locales de desarrollo.
-- `backend/database/init.sql`: esquema y datos base.
+```text
+backend/   API, servicios, esquema y pruebas
+frontend/  interfaz React
+context/   contrato tecnico vigente
+docs/      evidencia, analisis y runbooks
+scripts/   diagnostico y despliegue Node-RED
+```
 
-## Notas operativas
-
-- Produccion debe quedar con `SYNC_SOURCE=lkn` una vez validada la correccion de Turno 3.
-- `fecha_modificada` es la fecha operativa usada por el dashboard. En importaciones LKN copia directamente `fecha_operativa`, que ya contempla el cruce `00-06`.
-- `CSV_PATH` queda para importacion historica/manual; `LIVE_CSV_PATH` queda como fallback vivo.
-- El frontend apunta por defecto a `http://localhost:3001`.
-- Los cambios funcionales deberian reflejarse en `docs/CHANGELOG.md` y, si salen a uso real, tambien en `docs/DEPLOY_LOG.md`.
-
-## Reglas de documentacion
-
-- Usar documentacion por disparadores.
-- Si cambia instalacion o arranque, actualizar `README.md`.
-- Si cambia API, CSV, SQL, arquitectura o flujo operativo, actualizar `docs/CONTEXTO_PROYECTO.md`.
-- Si cambia el comportamiento funcional, actualizar `docs/CHANGELOG.md`.
-- Si el cambio pasa a uso real, actualizar `docs/DEPLOY_LOG.md`.
-- Ningun cambio de contrato se considera terminado sin su actualizacion documental.
+La regla de mantenimiento es simple: si cambia un comportamiento, su documento de contexto y el changelog deben actualizarse en el mismo cambio.

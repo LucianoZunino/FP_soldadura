@@ -1,44 +1,36 @@
-# INDICE_DOCUMENTACION - FP_Soldadura
+# Indice de documentacion
 
-## Archivos de contexto en raiz
+## Contrato vigente
 
-- [README.md](/C:/Users/lzunino/Desktop/FP_Soldadura/README.md): entrada rapida para instalar, inicializar y ejecutar el proyecto.
-- [AGENTS.md](/C:/Users/lzunino/Desktop/FP_Soldadura/AGENTS.md): reglas cortas de trabajo y lectura recomendada.
-- [CONTEXTO_PROYECTO.md](/C:/Users/lzunino/Desktop/FP_Soldadura/docs/CONTEXTO_PROYECTO.md): vision funcional y tecnica del sistema.
-- [CHANGELOG.md](/C:/Users/lzunino/Desktop/FP_Soldadura/docs/CHANGELOG.md): cambios funcionales del proyecto.
-- [DEPLOY_LOG.md](/C:/Users/lzunino/Desktop/FP_Soldadura/docs/DEPLOY_LOG.md): cambios llevados o listos para llevar a uso operativo.
-- [ANALISIS_LKN_PRODUCCION_HORARIA.md](/C:/Users/lzunino/Desktop/FP_Soldadura/docs/ANALISIS_LKN_PRODUCCION_HORARIA.md): relevamiento de `lkn_soft.produccion_horaria` como reemplazo potencial del CSV vivo.
-- [FP_Soldadura_Flujo_operativo_datos.png](/C:/Users/lzunino/Desktop/FP_Soldadura/docs/FP_Soldadura_Flujo_operativo_datos.png): imagen del flujo operativo del proyecto.
-- [FP_Soldadura_Flujo_operativo_datos.puml](/C:/Users/lzunino/Desktop/FP_Soldadura/docs/FP_Soldadura_Flujo_operativo_datos.puml): fuente editable PlantUML del diagrama de flujo operativo.
+- [`README.md`](../README.md): entrada al proyecto y comandos principales.
+- [`context/index.md`](../context/index.md): mapa del contrato tecnico actual.
+- [`context/01-arquitectura.md`](../context/01-arquitectura.md): componentes y flujo.
+- [`context/02-datos.md`](../context/02-datos.md): fuentes, tablas y claves.
+- [`context/03-servicios.md`](../context/03-servicios.md): responsabilidades e invariantes.
+- [`context/04-endpoints.md`](../context/04-endpoints.md): API HTTP.
+- [`context/05-decisiones-tecnicas.md`](../context/05-decisiones-tecnicas.md): decisiones vigentes.
+- [`context/06-migraciones.md`](../context/06-migraciones.md): evolucion de esquema y rollback.
+- [`context/07-limitaciones.md`](../context/07-limitaciones.md): riesgos conocidos.
+- [`context/08-frontend.md`](../context/08-frontend.md): comportamiento de UI.
 
-## Orden fisico recomendado del repo
+## Operacion
 
-- raiz: solo entrada, configuracion y manifiestos (`README.md`, `AGENTS.md`, `package.json`, `.env*`, `.gitignore`)
-- `docs/`: documentacion operativa
-- `logs/`: logs locales de desarrollo
-- `backend/` y `frontend/`: codigo de aplicacion
+- [`DEPLOY.md`](../DEPLOY.md): Test, Produccion y rollback.
+- [`docs/runbooks/node-red-soldadura.md`](./runbooks/node-red-soldadura.md): adquisicion PLC y despliegue Node-RED.
+- [`docs/runbooks/recuperacion-lkn.md`](./runbooks/recuperacion-lkn.md): diagnostico y recuperacion de sincronizacion.
+- [`CONTRIBUTING.md`](../CONTRIBUTING.md): reglas de trabajo y validacion.
+- [`AGENTS.md`](../AGENTS.md): instrucciones breves para agentes.
 
-## Documentacion por modulo
+## Historial y pendientes
 
-- `backend/database/init.sql`: esquema inicial de base de datos.
-- `backend/src/server.js`: contratos API disponibles.
-- `backend/src/csvImporter.js`: logica de importacion desde CSV.
-- `backend/src/productionService.js`: agregaciones y respuestas del dashboard.
-- `frontend/src/main.jsx`: composicion de vistas, fetches y estado principal.
-- `frontend/src/styles.css`: layout y lenguaje visual de la app.
+- [`docs/CHANGELOG.md`](./CHANGELOG.md): unico historial funcional oficial.
+- [`docs/DEPLOY_LOG.md`](./DEPLOY_LOG.md): evidencia de operaciones reales.
+- [`docs/ANALISIS_LKN_PRODUCCION_HORARIA.md`](./ANALISIS_LKN_PRODUCCION_HORARIA.md): investigacion detallada.
+- [`BACKLOG.md`](../BACKLOG.md): trabajo abierto con prioridad.
 
-## Orden recomendado de lectura
+## Diagramas
 
-1. `README.md`
-2. `docs/CONTEXTO_PROYECTO.md`
-3. `backend/database/init.sql`
-4. `backend/src/server.js`
-5. `frontend/src/main.jsx`
+- [`docs/FP_Soldadura_Flujo_operativo_datos.puml`](./FP_Soldadura_Flujo_operativo_datos.puml): fuente PlantUML.
+- [`docs/FP_Soldadura_Flujo_operativo_datos.png`](./FP_Soldadura_Flujo_operativo_datos.png): render de referencia.
 
-## Cuando actualizar cada archivo
-
-- `README.md`: cambios de arranque, instalacion o uso local.
-- `AGENTS.md`: cambios en reglas operativas de documentacion.
-- `docs/CONTEXTO_PROYECTO.md`: cambios de arquitectura, contratos o flujos.
-- `docs/CHANGELOG.md`: cualquier cambio funcional.
-- `docs/DEPLOY_LOG.md`: cambios que ya fueron aplicados o estan listos para aplicar.
+`docs/CONTEXTO_PROYECTO.md` se conserva solo como enlace de compatibilidad hacia `context/`; no es un segundo contrato activo.

@@ -1,5 +1,121 @@
 # ANALISIS - lkn_soft.produccion_horaria
 
+## Promocion a Produccion del 2026-10-15
+
+Despues de la validacion en Test se promovieron las correcciones a las 15 ramas del flujo productivo `tab_prod_soldadura_24h`. El flujo paso de SHA-256 `a472f9fdf7fa005a45c168de2254a5741e03475b1c0aa3bf3392815ad03057ac` a `a5f4eb404466f39bf79aaa9b74fb0c80c5516758d449f979cd509217221f1a35` y se genero un respaldo recuperable.
+
+El estado vigente es:
+
+- CELDA_7 usa `HORA[0]` en `00-01`.
+- Las otras ramas conservan su indice de medianoche validado.
+- Las 15 ramas omiten horas futuras.
+- Un cero corrige durante el bucket y hasta 10 minutos despues; un cero tardio no borra un positivo cerrado.
+- Las funciones productivas escriben solo tablas productivas.
+
+La comparacion posterior incluyo 62 maquinas y 310 bloques cerrados disponibles: no se encontraron diferencias entre CSV vivo y staging productivo. Falta validar el primer cruce productivo real `00-01` de CELDA_7 y resolver por separado los huecos 2026-10-10 a 2026-10-14.
+
+La proteccion del importador ante una fuente vacia esta implementada y probada en el repo, pero requiere desplegar y reiniciar el backend web para considerarse activa en el proceso productivo.
+
+## Validacion previa en Test del 2026-10-15
+
+El servidor Node-RED volvio a operar y permitio cerrar el diagnostico pendiente. Produccion genero nuevamente las 1.488 combinaciones de 62 maquinas y el flujo Test recibio las mismas 62 maquinas. Los 15 nodos Ethernet/IP informaron estado `online`, incluidos Tucker y MIG_1.
+
+La captura del cruce local `00:00-01:00` del 2026-10-03 demostro el error de CELDA_7:
+
+- `PIEZAS_HORA.M4.D4.HORA`, correspondiente a `CELDA_7_GOR_SUP_LH_OP10`, acumulo `33` en `[0]` y mantuvo `0` en `[24]`.
+- `PIEZAS_HORA.M4.D8.HORA`, correspondiente a `CELDA_7_APRON_OP80`, acumulo `32` en `[0]` y mantuvo `0` en `[24]`.
+- Las tres piezas restantes de CELDA_7 no produjeron en ese bloque y ambos indices permanecieron en cero.
+- La tabla productiva guardo `0` para las dos piezas activas usando tags terminados en `[24]`, confirmando la perdida de produccion en origen.
+
+La conclusion es especifica: en CELDA_7 el bloque `00-01` debe leer `[0]`. No corresponde cambiar todas las ramas. Tucker y las MIG ya usan `[0]`; las otras celdas SPOT conservan `[24]` porque sus comparaciones cerradas no mostraron este desplazamiento.
+
+La excepcion se valido primero en `TEST - SOLDADURA CORRECCION HORARIA` y luego se promovio a Produccion con respaldo y verificacion de huella. La proxima madrugada debe compararse CELDA_7 con el flujo diagnostico y con el CSV cerrado para validar la primera ejecucion real.
+
+### Contraste del dia actual
+
+El CSV vivo actualizado a las 10:32 se comparo contra las 62 maquinas:
+
+- 248 de 248 bloques cerrados (`06-07` a `09-10`) coincidieron exactamente tanto en Produccion como en Test.
+- Las diferencias observadas pertenecian exclusivamente al bloque activo `10-11` y cambiaban por el desfase de segundos entre las tres lecturas.
+- El reinicio no reconstruyo los dias 2026-10-10 a 2026-10-14: no existen filas LKN para esas fechas.
+
+### Inconsistencias independientes
+
+CELDA_7 no era la unica causa global de diferencias:
+
+- El flujo productivo ya incorpora la ventana de correccion de 10 minutos desplegada el 2026-10-15.
+- El servidor Node-RED estuvo detenido y dejo dias completos sin datos. El monitor de estados permite detectar futuras desconexiones, pero no reconstruye historicos.
+- El importador borraba la fecha destino si LKN devolvia cero filas. El codigo queda protegido para omitir el reemplazo y conservar el ultimo snapshot; falta desplegar y reiniciar el backend web.
+- Las filas cero ausentes en Test representan falta de cambio del nodo Ethernet/IP y el frontend las visualiza como cero. Para auditoria siguen siendo diferentes de una lectura explicita.
+
+## Investigacion del 2026-10-01
+
+### CELDA_7
+
+Las diferencias de CELDA_7 se concentran en `00-01`. Las horas anteriores y posteriores coinciden, por lo que el mapeo de pieza y tag base es correcto. Las nueve celdas SPOT consultan `[24]` para representar medianoche, pero el PLC de CELDA_7 tambien expone `[0]`. El flujo actual solo tiene `[24]` en su tabla de variables.
+
+Una lectura Test directa confirmo que `[0]` y `[24]` existen, pero a las 08:48 ambos ya se habian reiniciado en cero. No es seguro cambiar el indice basandose en esa captura tardia. Se dejo activo el flujo `TEST - DIAGNOSTICO CELDA7 HORA 0 VS 24`, que registrara ambos valores en `celda7_indice_diagnostico_test` durante el proximo cruce de medianoche. Si `[0]` coincide con el CSV y `[24]` permanece en cero, la correccion sera usar `[0]` solo para CELDA_7 en el bloque `00-01`.
+
+### Tucker y MIG_1
+
+El contraste en vivo muestra que sus mapeos coinciden con el CSV. Las filas ausentes no prueban por si solas una desconexion: la version instalada de `node-red-contrib-cip-ethernet-ip` en modo `all` emite un mensaje solamente cuando cambia al menos un tag. Por eso una hora completamente en cero puede no generar fila y el heartbeat en memoria puede marcar un falso offline.
+
+Sin embargo, luego de redesplegar Test, 13 de 15 entradas informaron estado `online`; Tucker y MIG_1 no lo hicieron, aunque ambos PLC respondieron por TCP 44818. Esto apunta a sesiones `eth-ip` trabadas. El proyecto del nodo tiene un reporte abierto sobre PLC que no se reconectan automaticamente: `https://github.com/st-one-io/node-red-contrib-cip-ethernet-ip/issues/40`.
+
+Se agrego un nodo `status` en Test para persistir solo transiciones reales en `plc_estado_diagnostico_test`. Esta evidencia permitira distinguir falta de cambios, desconexion y reconexion antes de decidir entre reiniciar endpoints, actualizar el nodo o agregar un watchdog.
+
+## Validacion del 2026-10-01
+
+Se comparo el dia operativo 2026-09-30 contra `produccion_sold_bk_ayer.csv`, cerrado el 2026-10-01 a las 05:55. El CSV contiene 62 maquinas y 1.488 bloques.
+
+- Produccion coincidio exactamente en 1.424 bloques y difirio en 64.
+- Test coincidio en 1.454 bloques, difirio en 6 y no materializo 28 filas.
+- Las 28 filas ausentes esperaban valor cero. Si la ausencia se interpreta funcionalmente como cero, Test coincide en 1.482 de 1.488 bloques.
+- Test corrigio 47 falsos positivos presentes en Produccion, principalmente en el Turno 3.
+- No se detectaron positivos historicos validos borrados por ceros tardios. La ventana de 10 minutos evito la regresion observada el dia anterior.
+
+Las seis diferencias con valor son:
+
+- Dos pasos intermedios ya aceptados: `CELDA_3_PILAR_C_RH_OP07` y `CELDA_8_FRONT_FLOOR_LH_OP20`, ambos en `21-22`.
+- CELDA_7 en `00-01`: `GOR_SUP_LH_OP10` informa `0` frente a `33` del CSV y `APRON_OP80` informa `0` frente a `1`.
+- `TUCKER_APRON_FUSILERA` en `01-02`: Test informa `42` frente a `43` del CSV.
+- `MIG_1_APRON_OP10_RH` en `03-04`: Test informa `0` frente a `1` del CSV.
+
+Las 28 filas ausentes pertenecen al Turno 3: 24 de Tucker entre `02-06` y 4 de MIG_1 entre `04-06`. Todas esperaban cero, pero la ausencia confirma que esas ramas dejaron de emitir mensajes durante parte de la madrugada. Conviene materializar el cero con `origen='SIN_LECTURA'` y generar una alerta, en vez de tratar silenciosamente una desconexion como produccion cero.
+
+## Validacion del 2026-09-30
+
+La comparacion del dia operativo 2026-09-29 contra el CSV de la intranet incluyo 62 maquinas y 1.488 bloques. Produccion coincidio en 1.430 bloques y el flujo TEST en 1.467, con 46 falsos positivos corregidos en el Turno 3.
+
+La prueba tambien detecto que el reemplazo irrestricto por cero no era seguro: `MIG_4_APRON_OP5LH` tenia `30` en `06-07`, coincidente entre CSV y Produccion, pero el PLC reinicio el arreglo cerca de las 06:00 del dia siguiente y TEST lo reemplazo por `0`.
+
+La regla TEST se refino para permitir la correccion a cero solamente durante el bloque activo y hasta 10 minutos despues de su cierre. Esto conserva la capacidad de limpiar residuos al comenzar una hora sin produccion, pero evita que un reinicio posterior borre un bloque historico valido.
+
+Persisten dos casos independientes de esta regla:
+
+- CELDA_7 informa `0` en `HORA[24]` para `00-01`, mientras el CSV informa `21` en cinco piezas. Produccion y Test coinciden en cero, por lo que debe revisarse el tag o indice PLC.
+- MIG_1 no emitio mensajes suficientes para crear ocho bloques en cero entre `02-06`. Debe definirse un cierre que materialice ceros aun cuando no llegue una nueva lectura.
+
+## Validacion Node-RED del 2026-09-24
+
+La pestaña productiva `LKN PRODUCCION SOLDADURA 24H` esta activa y Tucker entrega lecturas validas. El mapeo observado es independiente por pieza:
+
+- `DASH OP 5` -> `E06.Produccion.Por_Hora`
+- `DASH OP 7` -> `E01.Produccion.Por_Hora`
+- `CAJA DE AGUA` -> `E02.Produccion.Por_Hora`
+- `TUNNEL` -> `E05.Produccion.Por_Hora`
+
+El problema de origen no esta en el mapeo de FP_Soldadura. La funcion SQL de Node-RED tenia dos comportamientos riesgosos:
+
+- conservaba el positivo anterior cuando una lectura nueva informaba cero;
+- recorria los 24 bloques cada 15 segundos sin impedir la persistencia de horarios futuros.
+
+La tabla `produccion_horaria` alimenta directamente las vistas `vw_produccion_horaria`, `vw_produccion_turno`, `vw_produccion_diaria` y `vw_produccion_mensual`. No se encontraron triggers, rutinas, eventos ni claves foraneas que propaguen escrituras a otras tablas. Los consumidores externos de esas vistas no pueden determinarse solamente desde el schema.
+
+Para validar la correccion sin tocar Produccion se desplego el flujo paralelo `TEST - SOLDADURA CORRECCION HORARIA` (`94735d01267fe806`). Replica las 15 ramas productivas y escribe solo en `produccion_horaria_test` y `dashboard_equipos_live_test`. La prueba acepta ceros reales, descarta bloques futuros y usa una cola MySQL TEST independiente de 20 mensajes por segundo.
+
+La validacion del 2026-09-24 cubrio las 62 maquinas y 496 bloques ya iniciados, sin filas futuras. En esos bloques se detectaron 19 diferencias contra Produccion: Test registro `0` mientras el upsert productivo conservo valores positivos anteriores. Esto confirma que la regla de preservacion del positivo genera produccion ficticia cuando el PLC cambia a cero.
+
 ## Objetivo
 
 Dejar documentado el relevamiento hecho sobre la tabla `lkn_soft.produccion_horaria` como posible reemplazo de la lectura del CSV vivo actual.
@@ -84,7 +200,7 @@ Conclusión:
 
 Se inspeccionó el flujo:
 
-- `http://192.168.3.62:1880/#flow/tab_prod_soldadura_24h`
+- Flujo interno Node-RED `tab_prod_soldadura_24h` (direccion reservada al entorno).
 
 El tab relevado fue:
 

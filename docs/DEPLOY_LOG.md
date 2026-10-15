@@ -1,5 +1,100 @@
 # DEPLOY_LOG - FP_Soldadura
 
+## 2026-10-15 - Produccion
+
+- Flujo Node-RED productivo actualizado: `tab_prod_soldadura_24h`, 112 nodos y 15 ramas de transformacion.
+- SHA-256 anterior: `a472f9fdf7fa005a45c168de2254a5741e03475b1c0aa3bf3392815ad03057ac`.
+- SHA-256 desplegado: `a5f4eb404466f39bf79aaa9b74fb0c80c5516758d449f979cd509217221f1a35`.
+- Reglas promovidas:
+  - descarte de buckets futuros;
+  - cero correctivo durante el bloque y hasta 10 minutos despues;
+  - proteccion de positivos cerrados ante ceros tardios;
+  - `HORA[0]` para `00-01` solamente en CELDA_7.
+- Respaldo previo: `backups/node-red/2026-10-15T11-15-05-production-flow-before-hourly-corrections.json`.
+- SHA-256 del respaldo: `3a7a372374358625e934fbcab2c95d3d8c47495023c39cc2d1d41fd54caf6867`.
+- Validacion posterior:
+  - despliegue HTTP 200 y huella final esperada;
+  - dry-run posterior idempotente con `operation=no-op`;
+  - las 15 funciones contienen las reglas promovidas y escriben solo tablas productivas;
+  - staging LKN con 1.488 filas y 62 maquinas para el dia operativo;
+  - 310 bloques cerrados comparados sin diferencias contra CSV vivo;
+  - `/api/live-sync/status` productivo informa `source=lkn`, scheduler iniciado y sin `lastError`.
+- La proteccion backend ante fuente LKN vacia esta validada en codigo pero requiere pull/reinicio del servidor web; no se declara desplegada con el cambio de Node-RED.
+- Pendiente: validar el primer `00-01` productivo de CELDA_7 y decidir backfill de los dias sin staging solo si existe fuente confiable.
+
+## 2026-10-15 - Validacion Test
+
+- Modo: Test. No se modifico la pestana productiva ni sus tablas.
+- Flujo Test actualizado: `94735d01267fe806`, 15 ramas y 52 nodos.
+  - CELDA_7 usa `HORA[0]` para `00-01`.
+  - Las otras ramas conservan el indice de medianoche de su fuente productiva.
+  - Las 15 funciones mantienen la ventana de 10 minutos para ceros, el filtro de horas futuras y destinos exclusivamente Test.
+- Respaldo previo: `backups/node-red/2026-10-15T10-41-16-test-flow-before-celda7-index0.json`.
+  - SHA-256: `5E7D454D190E4C33F999714FDDABBC7A6398ADB10FC3DE6F24A56BF78F3AF546`.
+- La pestaña productiva conserva 112 nodos y el SHA-256 `a472f9fdf7fa005a45c168de2254a5741e03475b1c0aa3bf3392815ad03057ac`.
+- Validacion posterior:
+  - Los 15 PLC quedaron `online`, incluidos Tucker y MIG_1.
+  - Test siguio escribiendo 62 maquinas en `lkn_soft.produccion_horaria_test`.
+  - Los 248 bloques cerrados del dia coincidieron exactamente entre CSV vivo, Produccion y Test. Las diferencias restantes estaban en el bloque activo `10-11`.
+  - Las 15 funciones Test no contienen inserciones a `produccion_horaria` ni `dashboard_equipos_live` productivas.
+- Backend preparado para omitir el reemplazo si LKN devuelve cero filas. Las 9 pruebas automaticas pasan; el cambio no fue desplegado en Produccion.
+  - Sincronizacion integrada sobre `ferrosider_produccion_soldadura_test`: 1.488 filas fuente, 310 bloques iniciados importados, 62 maquinas y 1.178 bloques futuros omitidos.
+  - Prueba de fuente vacia con `2099-01-01`: `skipped=true`, `reason=empty-source` y `preservedExistingData=true`.
+- Pendiente antes de Produccion:
+  - Contrastar el proximo bloque real `00-01` de CELDA_7 entre Test, diagnostico `[0]/[24]` y CSV cerrado.
+  - Promover por separado la correccion del flujo y la proteccion del importador solo con autorizacion de modo Produccion.
+
+## 2026-10-01
+
+- Instrumentacion aplicada solo en Test; Produccion conserva el SHA-256 `a472f9fdf7fa005a45c168de2254a5741e03475b1c0aa3bf3392815ad03057ac`.
+- Flujo temporal CELDA_7: `113a3702b93d7672`, etiqueta `TEST - DIAGNOSTICO CELDA7 HORA 0 VS 24`.
+  - Usa una conexion separada al PLC de CELDA_7 con solo diez tags; la direccion queda reservada al entorno.
+  - Compara `[0]` y `[24]` y escribe unicamente en `lkn_soft.celda7_indice_diagnostico_test`.
+  - Debe permanecer activo hasta capturar el bloque `00-01`; se retira con `node scripts\\diagnose-node-red-celda7-hour-index-test.js --remove`.
+- Flujo general Test `94735d01267fe806` actualizado a 52 nodos:
+  - Monitorea estados reales de las 15 entradas `eth-ip`.
+  - Persiste solo transiciones de estado en `lkn_soft.plc_estado_diagnostico_test`.
+  - Tras limpiar eventos iniciales repetidos quedaron 13 ramas online; Tucker y MIG_1 no reportaron estado.
+- Respaldo previo: `backups/node-red/2026-10-01T08-57-39-test-flow-before-plc-status-monitor.json`, SHA-256 `A06FE754744C171CAE5D8960EA22991A1C3E5A842B7943120A85DC2BFD14D06B`.
+
+## 2026-09-30
+
+- Flujo Node-RED TEST actualizado: `94735d01267fe806`, etiqueta `TEST - SOLDADURA CORRECCION HORARIA`.
+- Alcance: 15 ramas, 62 maquinas, tablas `produccion_horaria_test` y `dashboard_equipos_live_test`; Produccion no fue modificada.
+- Regla desplegada: un cero puede reemplazar un positivo durante el bloque activo y durante una tolerancia de 10 minutos. Luego de esa ventana, un cero se considera reinicio tardio y no borra el historico.
+- Respaldo previo: `backups/node-red/2026-09-30T11-06-02-test-all-machines-before-zero-window.json`, SHA-256 `6D0820B2454C6E8DA2B59129830BE67370A46CCFC6E0A0B44120153C2877B5C8`.
+- Validacion:
+  - Las 15 funciones contienen la proteccion temporal, el filtro de horarios futuros y cero referencias a tablas productivas.
+  - Una transaccion reversible comprobo que un cero actual reemplaza `123` por `0` y que un cero tardio conserva `123`.
+  - El flujo continuo escribiendo despues del despliegue, con 62 maquinas y una demora observada de un segundo.
+  - La pestaña productiva conserva el SHA-256 `a472f9fdf7fa005a45c168de2254a5741e03475b1c0aa3bf3392815ad03057ac`.
+- Pendiente antes de Produccion:
+  - Validacion completada el 2026-10-01: 1.482 de 1.488 bloques coinciden funcionalmente con el CSV y no hubo positivos validos borrados por ceros tardios.
+  - Revisar por que CELDA_7 entrega cero en `HORA[24]` mientras el CSV informa produccion en `00-01`.
+  - Completar y marcar como `SIN_LECTURA` los bloques sin mensaje del PLC, observados en Tucker y MIG_1 durante el Turno 3.
+
+## 2026-09-24
+
+- Prueba aislada aplicada en Node-RED, sin modificar la pestaña productiva `LKN PRODUCCION SOLDADURA 24H`:
+  - Flujo TEST: `94735d01267fe806`, etiqueta `TEST - SOLDADURA CORRECCION HORARIA`.
+  - Tablas destino: `lkn_soft.produccion_horaria_test` y `lkn_soft.dashboard_equipos_live_test`.
+  - Replica las 15 ramas productivas, acepta `0` como ultimo valor y omite bloques futuros.
+  - Usa un nodo MySQL propio y una cola TEST independiente de 20 mensajes por segundo.
+- Respaldo previo recuperable:
+  - `backups/node-red/2026-09-24T15-23-11-037Z-flows.json`.
+  - `backups/node-red/2026-09-24T15-23-11-037Z-soldadura-tab.json`.
+  - `backups/node-red/2026-09-24T15-57-06-301Z-test-tucker-flow-before-all-machines.json`.
+  - SHA-256 de la pestaña productiva: `a472f9fdf7fa005a45c168de2254a5741e03475b1c0aa3bf3392815ad03057ac`.
+- Validacion:
+  - La pestaña productiva mantiene exactamente el mismo SHA-256 despues del despliegue TEST.
+  - Las 15 funciones TEST escriben unicamente en tablas TEST, aceptan `cantidad = VALUES(cantidad)` y aplican el filtro de bloques futuros.
+  - Se cubrieron las 62 maquinas con 496 filas correspondientes a 8 bloques iniciados, sin filas futuras.
+  - Se encontraron 19 bloques donde Test registro `0` y Produccion conservo un positivo anterior; una transaccion controlada tambien confirmo que un valor `123` puede corregirse a `0` y fue revertida.
+- Pendiente antes de Produccion:
+  - Observar el flujo TEST durante un turno completo y contrastarlo con el CSV de la intranet.
+  - Promover la correccion de las 15 ramas solamente despues de aprobar esa comparacion.
+  - Definir si la cola productiva se mantiene o se ajusta; no fue modificada en esta prueba.
+
 ## 2026-09-02
 
 - Cambio preparado y validado en modo Test:
@@ -81,7 +176,7 @@
   - Esta preparacion queda superada por la correccion de `fecha_modificada` del 2026-08-04; la fuente viva vuelve a ser LKN.
 - Configuracion esperada de produccion:
   - `SYNC_SOURCE=csv`
-  - `LIVE_CSV_PATH=\\192.168.3.223\Mantenimiento\CSV\produccion_sold_bk_1.csv`
+  - `LIVE_CSV_PATH` apunta al share vivo administrado por Mantenimiento.
   - `LIVE_CSV_AUTO_SYNC_ENABLED=true`
   - `LIVE_REFRESH_SECONDS=10`
   - `LKN_AUTO_SYNC_ENABLED=false`
@@ -110,9 +205,9 @@
 - Operacion aplicada sobre DB productiva despues de actualizar produccion:
   - Se genero backup local de `ferrosider_produccion_soldadura.produccion_hora` en `backups/PROD_produccion_hora_before_clean_2026-07-16T13-43-24-158Z.json`.
   - Se eliminaron 1226 filas de `ferrosider_produccion_soldadura.produccion_hora`.
-  - Se recargo produccion llamando a `POST http://192.168.4.250/soldadura/api/live-sync`.
+  - Se recargo produccion llamando a `POST /soldadura/api/live-sync` en el host productivo.
   - Resultado: 451 filas solo de `2026-07-16`, sin historicos y sin horas futuras; dashboard productivo devuelve `total=2704`, `totalProductosFinales=1530`.
-  - Observacion critica: produccion esta leyendo `LIVE_CSV_PATH=/var/www/html/csv/csv/produccion_sold_bk_1.csv`, con `sourceMtime=2024-09-03T15:54:21.081Z`, no el share vivo `\\192.168.3.223\Mantenimiento\CSV\produccion_sold_bk_1.csv`.
+  - Observacion critica: Produccion estaba leyendo una copia local obsoleta, con `sourceMtime=2024-09-03T15:54:21.081Z`, no el share vivo administrado por Mantenimiento.
 
 - Operacion aplicada sobre DB de test:
   - Se agrego `POST /api/import-lkn` para importar desde `lkn_soft.produccion_horaria`.
@@ -156,7 +251,7 @@
 - Validacion:
   - `node --check` OK en `csvImporter.js`, `liveCsvSync.js` y `server.js`.
   - `npm run build` OK en frontend.
-  - `POST /api/live-sync` OK contra `\\192.168.3.223\Mantenimiento\CSV\produccion_sold_bk_1.csv`: 89 filas leidas, 62 filas importadas, 1488 celdas horarias actualizadas para 2026-07-02.
+  - `POST /api/live-sync` OK contra el share vivo administrado por Mantenimiento: 89 filas leidas, 62 filas importadas, 1488 celdas horarias actualizadas para 2026-07-02.
   - Segunda llamada inmediata OK con `skipped: true` y razon `recent-sync`.
 - Archivos tocados:
   - backend/src/services/csvImporter.js

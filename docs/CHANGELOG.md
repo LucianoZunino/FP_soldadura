@@ -1,5 +1,41 @@
 # CHANGELOG - FP_Soldadura
 
+## 2026-10-15
+
+- Se promueven a las 15 ramas Node-RED productivas el filtro de horas futuras, la ventana de 10 minutos para corregir ceros y la lectura `HORA[0]` de CELDA_7 en `00-01`.
+- El despliegue productivo queda automatizado con dry-run, validacion de huella, respaldo previo, verificacion posterior, modo idempotente y rollback explicito.
+- Se confirma con captura directa del PLC de CELDA_7 que el bloque `00-01` se acumula en `HORA[0]`, mientras `HORA[24]` permanece en cero.
+- El flujo general Test usa ahora `[0]` solo para CELDA_7 en medianoche. Las otras ramas conservan el indice de su configuracion productiva; Tucker y las MIG ya usaban `[0]`.
+- Se mantiene en las 15 ramas Test el descarte de horas futuras y la regla que acepta ceros hasta 10 minutos despues del cierre, sin escribir tablas productivas.
+- El importador LKN deja de reemplazar una fecha cuando la fuente devuelve cero filas. Informa `reason=empty-source` y `preservedExistingData=true` sin iniciar una transaccion destructiva.
+- Se agrega una prueba automatica para demostrar que una fuente vacia no ejecuta `DELETE FROM produccion_hora`.
+- Se reorganiza la documentacion segun el contrato del proyecto: `context/` para estado vigente, runbooks para operacion, un unico changelog, backlog separado y procedimientos de despliegue/rollback.
+- El Dashboard reemplaza el subtitulo obsoleto de lectura CSV por la fuente viva LKN vigente.
+
+## 2026-10-01
+
+- Se agrega `scripts/diagnose-node-red-celda7-hour-index-test.js` y se deja activo un flujo Test temporal que compara los indices `[0]` y `[24]` de las cinco piezas de CELDA_7 durante el proximo cruce de medianoche.
+- Se confirma que el PLC de CELDA_7 expone ambos indices. La lectura posterior a las 06:00 encontro ambos reiniciados en cero, por lo que hace falta capturarlos durante `00-01` antes de cambiar el mapeo.
+- Se agrega al flujo general Test un monitor deduplicado de estados reales de las 15 entradas `eth-ip`, con destino `lkn_soft.plc_estado_diagnostico_test`.
+- Tucker y MIG_1 fueron las unicas ramas sin estado `online` despues del despliegue, aunque sus PLC respondieron en el puerto 44818. La evidencia apunta a sesiones Node-RED trabadas o sin reconexion automatica, no a un error de mapeo.
+- Se determina que el heartbeat basado en mensajes no prueba conectividad: el modo `all` del nodo instalado emite solamente cuando cambia al menos un tag.
+
+## 2026-09-30
+
+- La comparacion del 29/09 contra `produccion_sold_bk_ayer.csv` confirma que el flujo TEST corrigio 46 falsos positivos del Turno 3: Test coincidio en 1.467 celdas frente a 1.430 de Produccion.
+- Se detecta que aceptar cualquier cero puede borrar produccion historica cuando el PLC reinicia tarde sus arreglos horarios; `MIG_4_APRON_OP5LH` paso incorrectamente de `30` a `0` en el bloque `06-07`.
+- Las 15 ramas TEST ahora aceptan un cero sobre un positivo solamente durante el bloque activo y hasta 10 minutos despues de su cierre. Los ceros tardios conservan el positivo historico.
+- La proteccion usa la hora local de Argentina convertida explicitamente desde UTC y mantiene el descarte de bloques futuros.
+- Quedan pendientes la diferencia de CELDA_7 en `00-01` y el completado explicito de bloques sin lectura en MIG_1.
+
+## 2026-09-24
+
+- Se confirma en Node-RED que Tucker usa tags independientes por pieza: `TUNNEL` lee `E05.Produccion.Por_Hora`, sin cruces de mapeo con `DASH OP 5`, `DASH OP 7` ni `CAJA DE AGUA`.
+- Se identifica que el upsert de `lkn_soft.produccion_horaria` conserva un positivo cuando el PLC informa cero y que las ramas recorren los 24 bloques sin descartar horarios futuros.
+- Se agrega `scripts/deploy-node-red-all-machines-test.js` para generar y desplegar una prueba aislada de las 15 ramas de soldadura, con validaciones previas y ejecucion explicita mediante `--deploy`.
+- La prueba corrige el upsert para aceptar cero, descarta bloques cuyo inicio todavia no ocurrio, usa una cola MySQL TEST independiente y escribe exclusivamente en `produccion_horaria_test` y `dashboard_equipos_live_test`.
+- La comparacion de 62 maquinas y 496 bloques iniciados encontro 19 casos donde Test registro `0` y Produccion conservo un positivo anterior, confirmando el defecto del upsert productivo.
+
 ## 2026-09-02
 
 - El frontend usa el dia operativo como fecha inicial y como criterio de refresco vivo: entre `00:00` y `05:59` mantiene visible el dia anterior para completar el Turno 3.

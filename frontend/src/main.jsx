@@ -395,7 +395,7 @@ function DashboardView({ dashboard, date, onDateChange, onImport, onImportArticl
   return (
     <main className="content">
       <header className="topbar">
-        <HeaderTitle title="Produccion - Vista del dia" subtitle="Lectura del CSV en schema aislado" sidebarCollapsed={sidebarCollapsed} onToggleSidebar={onToggleSidebar} />
+        <HeaderTitle title="Produccion - Vista del dia" subtitle="Sincronizacion LKN en schema operativo" sidebarCollapsed={sidebarCollapsed} onToggleSidebar={onToggleSidebar} />
         <div className="toolbar">
           <DateQueryControl date={date} onDateChange={onDateChange} />
           <button className="primaryButton" onClick={onImport} disabled={importing}>

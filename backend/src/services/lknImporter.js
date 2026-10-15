@@ -456,8 +456,6 @@ async function importLknProduction(options = {}) {
   const connection = await pool.getConnection();
 
   try {
-    const catalogMaps = await getCatalogMaps(connection);
-    const machineMappings = await getMachineMappings(connection, fecha);
     const [sourceRows] = await connection.execute(
       `SELECT
           fecha_operativa,
@@ -478,6 +476,30 @@ async function importLknProduction(options = {}) {
        ORDER BY maquina, hora_desde`,
       [fecha]
     );
+
+    // A source outage must not turn into a destructive replacement of the
+    // dashboard date. Keep the last imported snapshot and expose the skip.
+    if (!sourceRows.length) {
+      return {
+        fecha,
+        sourceSchema,
+        sourceRows: 0,
+        rowsImported: 0,
+        machinesImported: 0,
+        explicitMappingsUsed: 0,
+        fallbackMappingsUsed: 0,
+        futureRowsSkipped: 0,
+        prematurePositiveRowsReset: 0,
+        prematureQuantityDiscarded: 0,
+        replaceDate,
+        skipped: true,
+        reason: 'empty-source',
+        preservedExistingData: true
+      };
+    }
+
+    const catalogMaps = await getCatalogMaps(connection);
+    const machineMappings = await getMachineMappings(connection, fecha);
 
     const mappedRecords = [];
     const failures = [];
