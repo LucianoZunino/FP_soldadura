@@ -52,6 +52,8 @@ const SHIFTS = [
   }
 ];
 
+const STANDARD_PIECES_PER_HOUR = 24;
+
 function hourLabel(hourRange) {
   return `${hourRange[0].slice(0, 2)}-${hourRange[1].slice(0, 2)}`;
 }
@@ -82,6 +84,7 @@ function productionStatus(value, productionLine = '') {
 
 module.exports = {
   SHIFTS,
+  STANDARD_PIECES_PER_HOUR,
   hourLabel,
   productionStatus
 };

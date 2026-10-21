@@ -21,6 +21,7 @@ import grupoRbLogo from './assets/grupo-reb-logo.png';
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:3001';
 const AUTO_DASHBOARD_REFRESH = import.meta.env.VITE_AUTO_DASHBOARD_REFRESH !== 'false';
+const DEFAULT_STANDARD_PIECES_PER_HOUR = 24;
 
 const navItems = [
   { id: 'dashboard', label: 'Dashboard', icon: Grid3X3 },
@@ -91,7 +92,7 @@ function downloadCsv(filename, dashboard, onlyShiftId = null) {
   const headers = [
     'Celda',
     'Pieza',
-    'Articulo final',
+    'Estandar (pzas/h)',
     ...shifts.flatMap((shift) => [
       ...shift.hours.map((hour) => `${shift.label} ${hour.label}`),
       `Total ${shift.label}`
@@ -110,7 +111,7 @@ function downloadCsv(filename, dashboard, onlyShiftId = null) {
     return [
       row.celda,
       row.pieza,
-      row.articulosFinales || '',
+      row.standardPiecesPerHour ?? DEFAULT_STANDARD_PIECES_PER_HOUR,
       ...shiftValues,
       onlyShiftId ? row.totalsByShift[onlyShiftId] || 0 : row.total
     ];
@@ -246,14 +247,16 @@ function DateQueryControl({ date, onDateChange }) {
   );
 }
 
-function articleLabel(row) {
-  if (!row.articulosFinales) {
-    return '-';
-  }
+function machineGroupRowClass(rows, index) {
+  const machine = rows[index]?.celda;
+  const startsGroup = index === 0 || rows[index - 1]?.celda !== machine;
+  const endsGroup = index === rows.length - 1 || rows[index + 1]?.celda !== machine;
 
-  return row.cantidadArticulosFinales > 1
-    ? `${row.articulosFinales} (${row.cantidadArticulosFinales})`
-    : row.articulosFinales;
+  return [
+    'machineGroupRow',
+    startsGroup ? 'machineGroupStart' : '',
+    endsGroup ? 'machineGroupEnd' : ''
+  ].filter(Boolean).join(' ');
 }
 
 function ProductionTable({ dashboard, shiftId = null, compact = false, stickyBottomScrollbar = false }) {
@@ -339,7 +342,7 @@ function ProductionTable({ dashboard, shiftId = null, compact = false, stickyBot
           <colgroup>
             <col className="colCelda" />
             <col className="colPieza" />
-            <col className="colArticulo" />
+            <col className="colStandard" />
             {shifts.map((shift) => (
               <React.Fragment key={`col-${shift.id}`}>
                 {shift.hours.map((hour) => (
@@ -354,7 +357,7 @@ function ProductionTable({ dashboard, shiftId = null, compact = false, stickyBot
             <tr>
               <th className="frozenColumn frozenColumnCelda" rowSpan="2">Celda</th>
               <th className="frozenColumn frozenColumnPieza" rowSpan="2">Pieza</th>
-              <th className="frozenColumn frozenColumnArticulo" rowSpan="2">Articulo final</th>
+              <th className="frozenColumn frozenColumnStandard" rowSpan="2">Estandar (pzas/h)</th>
               {shifts.map((shift) => (
                 <th key={shift.id} colSpan={shift.hours.length + 1}>
                   {shift.label} ({shift.description})
@@ -372,12 +375,12 @@ function ProductionTable({ dashboard, shiftId = null, compact = false, stickyBot
             </tr>
           </thead>
           <tbody>
-            {dashboard.rows.map((row) => (
-              <tr key={`${row.idCelda}:${row.idPieza}`}>
+            {dashboard.rows.map((row, index) => (
+              <tr className={machineGroupRowClass(dashboard.rows, index)} key={`${row.idCelda}:${row.idPieza}`}>
                 <td className="frozenColumn frozenColumnCelda">{row.celda}</td>
                 <td className="frozenColumn frozenColumnPieza">{row.pieza}</td>
-                <td className="frozenColumn frozenColumnArticulo articleCell" title={row.articulosFinalesDetalle || row.articulosFinales || ''}>
-                  {articleLabel(row)}
+                <td className="frozenColumn frozenColumnStandard standardCell" title="Estandar fijo de produccion por hora">
+                  {row.standardPiecesPerHour ?? DEFAULT_STANDARD_PIECES_PER_HOUR}
                 </td>
                 {shifts.map((shift) => (
                   <React.Fragment key={shift.id}>
@@ -524,8 +527,8 @@ function GeneralSummaryTable({ dashboard }) {
           </tr>
         </thead>
         <tbody>
-          {dashboard.rows.map((row) => (
-            <tr key={`${row.idCelda}:${row.idPieza}`}>
+          {dashboard.rows.map((row, index) => (
+            <tr className={machineGroupRowClass(dashboard.rows, index)} key={`${row.idCelda}:${row.idPieza}`}>
               <td>{row.celda}</td>
               <td>{row.pieza}</td>
               <td>{row.totalsByShift[1] || 0}</td>

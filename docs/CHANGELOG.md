@@ -1,5 +1,12 @@
 # CHANGELOG - FP_Soldadura
 
+## 2026-10-19
+
+- La API incorpora `standardPiecesPerHour` con un estandar fijo de 24 piezas por hora para todas las filas.
+- Las grillas y exportaciones CSV reemplazan la columna `Articulo final` por `Estandar (pzas/h)`.
+- Las relaciones articulo-pieza se mantienen internamente para preservar el calculo de productos finales.
+- La matriz horaria y el Resumen general delimitan cada bloque de maquina con un borde reforzado para facilitar la lectura.
+
 ## 2026-10-15
 
 - Se agrega la vista `Resumen general` por fecha con columnas `PIEZA_NUMERO`, `DESCRIPCION`, `PROD_T1`, `PROD_T2`, `PROD_T3` y `produccion_actual`.

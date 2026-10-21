@@ -1,5 +1,10 @@
 const { createPool } = require('../config/db');
-const { SHIFTS, hourLabel, productionStatus } = require('../constants/production');
+const {
+  SHIFTS,
+  STANDARD_PIECES_PER_HOUR,
+  hourLabel,
+  productionStatus
+} = require('../constants/production');
 const { isFutureHourForDate, normalizeDate } = require('../utils/dates');
 
 function formatTime(value) {
@@ -40,6 +45,7 @@ function buildMatrix(rows, options = {}) {
         articulosFinales: row.articulos_finales || '',
         articulosFinalesDetalle: row.articulos_finales_detalle || '',
         cantidadArticulosFinales: Number(row.cantidad_articulos_finales || 0),
+        standardPiecesPerHour: STANDARD_PIECES_PER_HOUR,
         hours: emptyHours(),
         totalsByShift: { 1: 0, 2: 0, 3: 0 },
         total: 0
@@ -207,6 +213,7 @@ async function getCatalogs() {
 }
 
 module.exports = {
+  buildMatrix,
   getDashboard,
   getShift,
   getCatalogs

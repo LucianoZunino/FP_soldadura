@@ -440,7 +440,7 @@ select {
   width: 140px;
 }
 
-.colArticulo {
+.colStandard {
   width: 132px;
 }
 
@@ -470,6 +470,26 @@ select {
   border-left: 1px solid #dbe3ee;
 }
 
+.productionTable tbody tr.machineGroupRow > td:first-child,
+.generalSummaryTable tbody tr.machineGroupRow > td:first-child {
+  border-left: 2px solid #71849d;
+}
+
+.productionTable tbody tr.machineGroupRow > td:last-child,
+.generalSummaryTable tbody tr.machineGroupRow > td:last-child {
+  border-right: 2px solid #71849d;
+}
+
+.productionTable tbody tr.machineGroupStart:first-child > td,
+.generalSummaryTable tbody tr.machineGroupStart:first-child > td {
+  border-top: 2px solid #71849d;
+}
+
+.productionTable tbody tr.machineGroupEnd > td,
+.generalSummaryTable tbody tr.machineGroupEnd > td {
+  border-bottom: 2px solid #71849d;
+}
+
 .productionTable thead tr:first-child > * {
   border-top: 1px solid #dbe3ee;
 }
@@ -488,8 +508,7 @@ select {
 }
 
 .productionTable tbody .frozenColumnCelda,
-.productionTable tbody .frozenColumnPieza,
-.articleCell {
+.productionTable tbody .frozenColumnPieza {
   color: #07173a;
   text-align: left;
 }
@@ -530,7 +549,7 @@ select {
   width: 140px;
 }
 
-.productionTable .frozenColumnArticulo {
+.productionTable .frozenColumnStandard {
   border-right: 2px solid #9fb0c5;
   box-shadow: 6px 0 8px -7px rgba(21, 42, 72, 0.75);
   left: 260px;
@@ -539,9 +558,11 @@ select {
   width: 132px;
 }
 
-.articleCell {
-  color: #3d4f6a;
+.standardCell {
+  color: #07173a;
+  font-weight: 700;
   max-width: 132px;
+  text-align: center;
 }
 
 .heat {

@@ -13,7 +13,7 @@ Las variables `VITE_*` se resuelven durante el build. Un cambio requiere reconst
 
 ## Vistas
 
-- **Dashboard:** matriz diaria por celda, pieza, articulo final, turno y hora.
+- **Dashboard:** matriz diaria por celda, pieza, estandar horario, turno y hora.
 - **Turno:** detalle filtrado por turno.
 - **Resumen general:** totales T1, T2, T3 y dia por celda/pieza, con descarga XLSX.
 - **Historial:** consulta fechas seleccionadas.
@@ -58,9 +58,11 @@ No hay store global, cache persistente ni sincronizacion de filtros con URL.
 
 La grilla muestra `0` en lugar de una celda vacia para una combinacion sin cantidad. Esto no distingue entre cero explicitamente leido y ausencia de fila en la fuente; esa calidad debe resolverse en datos antes de presentarla.
 
-## Articulos finales
+## Estandar horario y articulos finales
 
-La UI muestra la relacion resuelta por backend. Cuando no existe articulo final asociado, presenta `SUBPROCESO`.
+La grilla muestra `Estandar (pzas/h)` con el valor fijo `24` informado por backend en `standardPiecesPerHour`. La exportacion CSV utiliza la misma columna y valor.
+
+Las relaciones con articulos finales se conservan en backend para identificar productos finales y calcular los resumenes, pero no se muestran como columna en la grilla.
 
 ## Filtros, identidad y exportacion
 
@@ -76,6 +78,7 @@ La UI muestra la relacion resuelta por backend. Cuando no existe articulo final 
 
 - Numeros totales usan locale `es-AR`; las fechas visibles se formatean como `DD/MM/YYYY`.
 - La tabla mantiene columnas iniciales fijas y scroll horizontal; puede mostrar una barra inferior sincronizada.
+- Las filas consecutivas de una misma maquina/celda forman un bloque delimitado por un borde reforzado en la matriz y en el Resumen general.
 - Bajo 900 px el layout adapta sidebar y contenido, aunque la matriz sigue dependiendo de desplazamiento horizontal.
 - Los botones iconicos principales incluyen `title`; no existe una auditoria de accesibilidad automatizada documentada.
 

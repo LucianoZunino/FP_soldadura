@@ -10,6 +10,7 @@
 | Maquina hacia celda/pieza | `maquina_pieza_mapeo` |
 | Turnos | `turno` y `backend/src/constants/production.js` |
 | Articulos finales | Excel importado a `articulo_final` y tablas de relacion |
+| Estandar horario visible | Constante `STANDARD_PIECES_PER_HOUR` del backend |
 | CSV historico/manual | Archivo configurado en `CSV_PATH` |
 
 ## Modelo local
@@ -54,6 +55,10 @@ Resuelve una maquina LKN a una combinacion local con vigencia temporal:
 - `celda_pieza_articulo_final`: relacion operativa prioritaria por celda y pieza.
 
 El dashboard prioriza la relacion operativa y usa la relacion general como fallback. Sin relacion muestra `SUBPROCESO`.
+
+## Estandar horario
+
+El estandar vigente es global: `24` piezas por hora para todas las combinaciones celda/pieza. No proviene de `articulo_final.modulacion` ni modifica datos historicos; el backend lo agrega a cada fila del dashboard como `standardPiecesPerHour`.
 
 ## Staging LKN
 

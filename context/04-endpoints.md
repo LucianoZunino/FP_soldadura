@@ -28,6 +28,7 @@ Devuelve solo el estado del scheduler LKN: intervalo, ejecucion en curso, ultimo
 ### `GET /api/dashboard?fecha=YYYY-MM-DD`
 
 Devuelve la matriz diaria agregada y sus resumenes. Consulta `produccion_hora.fecha_modificada`.
+Cada fila incluye `standardPiecesPerHour: 24`, estandar fijo vigente para todas las piezas.
 
 ### `GET /api/resumen-general/excel?fecha=YYYY-MM-DD`
 
