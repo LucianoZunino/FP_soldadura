@@ -1,5 +1,12 @@
 # DEPLOY_LOG - FP_Soldadura
 
+## 2026-10-22 - Simplificacion de acciones del Dashboard
+
+- Cambio preparado para Test y Produccion: se ocultan las acciones manuales `Actualizar vivo` e `Importar articulos`.
+- Continuan vigentes el refresco automatico de lectura cada 10 segundos, el scheduler LKN y los endpoints backend para operacion tecnica.
+- No requiere migracion de base ni cambios de variables de entorno.
+- Archivos involucrados: `frontend/src/main.jsx`, `docs/CHANGELOG.md` y `docs/DEPLOY_LOG.md`.
+
 ## 2026-10-22 - Orden prioritario de prensas
 
 - Cambio preparado para Test y Produccion: `LINEA VERSON` y `LINEA SCHULER` se ubican antes que todas las demas maquinas.

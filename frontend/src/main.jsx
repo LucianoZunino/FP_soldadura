@@ -4,7 +4,6 @@ import {
   BarChart3,
   CalendarDays,
   ClipboardList,
-  Database,
   Download,
   FileSpreadsheet,
   Gauge,
@@ -13,7 +12,6 @@ import {
   Loader2,
   PanelLeftClose,
   PanelLeftOpen,
-  RefreshCcw,
   Search
 } from 'lucide-react';
 import './styles.css';
@@ -413,23 +411,13 @@ function ProductionTable({ dashboard, shiftId = null, compact = false, stickyBot
   );
 }
 
-function DashboardView({ dashboard, date, onDateChange, onImport, onImportArticles, importing, importingArticles, sidebarCollapsed, onToggleSidebar }) {
-  const isCurrentOperationalDate = date === currentOperationalDate();
-
+function DashboardView({ dashboard, date, onDateChange, sidebarCollapsed, onToggleSidebar }) {
   return (
     <main className="content">
       <header className="topbar">
         <HeaderTitle title="Produccion - Vista del dia" subtitle="Sincronizacion LKN en schema operativo" sidebarCollapsed={sidebarCollapsed} onToggleSidebar={onToggleSidebar} />
         <div className="toolbar">
           <DateQueryControl date={date} onDateChange={onDateChange} />
-          <button className="primaryButton" onClick={onImport} disabled={importing}>
-            {importing ? <Loader2 className="spin" size={16} /> : <RefreshCcw size={16} />}
-            {isCurrentOperationalDate ? 'Actualizar vivo' : 'Importar CSV'}
-          </button>
-          <button className="primaryButton secondaryButton" onClick={onImportArticles} disabled={importingArticles}>
-            {importingArticles ? <Loader2 className="spin" size={16} /> : <Database size={16} />}
-            Importar articulos
-          </button>
         </div>
       </header>
 
@@ -661,8 +649,6 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [importing, setImporting] = useState(false);
-  const [importingArticles, setImportingArticles] = useState(false);
   const [exportingSummary, setExportingSummary] = useState(false);
   const [error, setError] = useState('');
   const [lastUpdate, setLastUpdate] = useState('');
@@ -684,46 +670,6 @@ function App() {
       if (!options.silent) {
         setLoading(false);
       }
-    }
-  }
-
-  async function importCurrentCsv() {
-    setImporting(true);
-    setError('');
-
-    try {
-      const isCurrentOperationalDate = selectedDate === currentOperationalDate();
-      const result = await fetchJson(isCurrentOperationalDate ? '/api/live-sync' : '/api/import', {
-        method: 'POST',
-        body: JSON.stringify(isCurrentOperationalDate ? {} : { fecha: selectedDate })
-      });
-
-      if (result.fecha !== selectedDate) {
-        setSelectedDate(result.fecha);
-      } else {
-        await loadDashboard(result.fecha);
-      }
-    } catch (importError) {
-      setError(importError.message);
-    } finally {
-      setImporting(false);
-    }
-  }
-
-  async function importArticles() {
-    setImportingArticles(true);
-    setError('');
-
-    try {
-      await fetchJson('/api/import-articulos', {
-        method: 'POST',
-        body: JSON.stringify({})
-      });
-      await loadDashboard(selectedDate);
-    } catch (importError) {
-      setError(importError.message);
-    } finally {
-      setImportingArticles(false);
     }
   }
 
@@ -780,10 +726,6 @@ function App() {
           dashboard={dashboard}
           date={selectedDate}
           onDateChange={setSelectedDate}
-          onImport={importCurrentCsv}
-          onImportArticles={importArticles}
-          importing={importing}
-          importingArticles={importingArticles}
           sidebarCollapsed={sidebarCollapsed}
           onToggleSidebar={() => setSidebarCollapsed((value) => !value)}
         />
@@ -824,14 +766,10 @@ function App() {
       dashboard={dashboard}
       date={selectedDate}
       onDateChange={setSelectedDate}
-      onImport={importCurrentCsv}
-      onImportArticles={importArticles}
-      importing={importing}
-      importingArticles={importingArticles}
       sidebarCollapsed={sidebarCollapsed}
       onToggleSidebar={() => setSidebarCollapsed((value) => !value)}
     />;
-  }, [activeView, dashboard, exportingSummary, importing, importingArticles, loading, selectedDate, shiftId]);
+  }, [activeView, dashboard, exportingSummary, loading, selectedDate, shiftId]);
 
   return (
     <div className={sidebarCollapsed ? 'appShell sidebarCollapsed' : 'appShell'}>

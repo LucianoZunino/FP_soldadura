@@ -2,6 +2,7 @@
 
 ## 2026-10-22
 
+- Se retiran del Dashboard los botones manuales `Actualizar vivo` e `Importar articulos`; el refresco automatico y el scheduler LKN siguen activos, y los endpoints operativos se conservan.
 - Las filas de `LINEA VERSON` y `LINEA SCHULER` pasan a mostrarse primero, en ese orden, en Dashboard, turnos, historial, resumen general y exportaciones.
 - Se agrega monitoreo interno de salud LKN con deteccion de scheduler detenido, errores, fuente vacia, atraso de staging y baja cobertura de maquinas; se informa por logs y `GET /api/lkn-health`, sin cambios en el frontend.
 - Se incorpora una herramienta reproducible para comparar CSV y base por celda, pieza y hora, incluyendo un modo que considera solo bloques cerrados.
