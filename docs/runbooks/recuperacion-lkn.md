@@ -3,6 +3,7 @@
 ## Sintomas
 
 - `/api/live-sync/status` muestra `lastError`.
+- `/api/lkn-health` informa `warning` o `critical`.
 - `lastResult.sourceRows` es cero o no cambia.
 - Los timestamps de `lkn_soft.produccion_horaria` dejan de avanzar.
 - El Dashboard conserva un snapshot sin incorporar nuevos bloques.
@@ -24,7 +25,7 @@ Si el backend desplegado no devuelve ese contrato, no ejecutar reemplazos repeti
 ## Diagnostico
 
 1. Confirmar modo y `DB_NAME` efectivo.
-2. Consultar `GET /api/health` y `GET /api/live-sync/status`.
+2. Consultar `GET /api/health`, `GET /api/live-sync/status` y `GET /api/lkn-health`.
 3. Verificar `source=lkn`, scheduler habilitado/iniciado y fecha operativa esperada.
 4. Contar filas y maquinas de staging para esa fecha.
 5. Revisar mapeos vigentes para maquinas nuevas o trasladadas.
@@ -67,4 +68,5 @@ No forzar CSV sobre el dia actual sin decision operativa. Recuperar primero Node
 - El scheduler queda sin `lastError`.
 - No existen horas futuras persistidas en la base local.
 - Un bloque cerrado coincide con la fuente de control.
+- El verificador `scripts/verify-web-deployment.js` devuelve `ok=true`.
 - La causa y la recuperacion quedan registradas.

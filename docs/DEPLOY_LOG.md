@@ -1,5 +1,48 @@
 # DEPLOY_LOG - FP_Soldadura
 
+## 2026-10-22 - Validacion Test de controles operativos
+
+- Backend local ejecutado contra `ferrosider_produccion_soldadura_test`, fuente `lkn` y puerto 3002.
+- Monitor LKN validado en nivel `ok`: scheduler iniciado, 310 filas, 62 maquinas, atraso de staging de 7 segundos y sin errores.
+- Proteccion de fuente vacia validada por HTTP con una fila centinela temporal de cantidad 777:
+  - `POST /api/import-lkn` para `2099-01-01` respondio `reason=empty-source` y `preservedExistingData=true`;
+  - la fila permanecio intacta y se elimino al finalizar la prueba.
+- `scripts/verify-web-deployment.js` aprobo health, release `test-local`, fuente LKN, scheduler y monitor.
+- Comparacion posterior al arreglo contra CSV vivo: 248 de 248 bloques cerrados exactos, sin diferencias y total 5489 en ambos lados.
+- Comparacion cerrada anterior al arreglo, 2026-10-21:
+  - 1437 de 1488 bloques exactos;
+  - 50 diferencias explicadas por las cinco piezas de CELDA_7 ausentes antes de corregir el endpoint;
+  - una diferencia corresponde al paso intermedio aceptado `CELDA_8 / FRONT FLOOR LH OP.20 / 21-22`.
+- Resultado: Test aprobado para promover los controles internos. No se modifico la interfaz.
+
+## 2026-10-22 - Correccion CELDA_7 en Produccion
+
+- Diagnostico: la funcion productiva ya leia `HORA[0]` para CELDA_7, pero su endpoint Ethernet/IP declaraba solamente los cinco tags `HORA[24]`. Al detectar cinco variables faltantes, la rama descartaba el mensaje completo y no escribia ninguna hora.
+- Validacion previa en Test:
+  - flujo `94735d01267fe806` con endpoint aislado y sin escrituras productivas;
+  - 15 filas positivas para cinco piezas y los bloques `06-07`, `07-08` y `08-09`;
+  - total observado: 312 piezas;
+  - el endpoint productivo permanecio sin filas de CELDA_7 durante la prueba, confirmando el aislamiento.
+- Primera aplicacion productiva: se detecto que `PUT /flow` habia dejado dos configuraciones con el mismo ID y Node-RED seguia resolviendo la global anterior. No se considero recuperado el servicio con ese estado.
+- Aplicacion definitiva:
+  - se normalizo `/flows` en una sola operacion;
+  - quedo un unico endpoint global `d106bad673723722` con cinco tags `HORA[0]` y cinco `HORA[24]`;
+  - se retiro `test_all_celda7_endpoint_v3` y Test paso a compartir el endpoint global corregido;
+  - flujo productivo final con SHA-256 `a5f4eb404466f39bf79aaa9b74fb0c80c5516758d449f979cd509217221f1a35`;
+  - despliegue aceptado con HTTP 204.
+- Respaldo integral previo: `backups/node-red/2026-10-22T08-55-20-production-flow-before-celda7-endpoint-fix.json`.
+- SHA-256 del respaldo: `e3bfabd32316b7592f2c345a4a67e26da08df63c9a078dd3ebe26640711b11ec`.
+- Validacion posterior:
+  - `lkn_soft.produccion_horaria` registro 15 filas iniciales de CELDA_7 para cinco maquinas;
+  - el backend productivo paso de 162 filas/54 maquinas a 177 filas/59 maquinas, sin `lastError`;
+  - `ferrosider_produccion_soldadura.produccion_hora` recibio las cinco piezas y continuo actualizando el bloque activo;
+  - la comprobacion final encontro 20 filas, cinco maquinas y total 330 tanto en Produccion como en Test, sin diferencias de cantidad;
+  - la tabla final productiva mostro tambien 20 filas, cinco piezas y total 330;
+  - 15 pruebas backend, chequeos de sintaxis y build frontend aprobados;
+  - el dry-run productivo posterior informo `operation=no-op`.
+- Pendiente no bloqueante: contrastar el proximo bloque productivo `00-01` de CELDA_7 contra el CSV cerrado.
+- Archivos versionables involucrados: `scripts/node-red-celda7-config.js`, `scripts/deploy-node-red-all-machines-test.js`, `scripts/deploy-node-red-all-machines-production.js`, `backend/test/nodeRedCelda7Config.test.js`, `docs/CHANGELOG.md`, `docs/DEPLOY_LOG.md`, `docs/ANALISIS_LKN_PRODUCCION_HORARIA.md`, `docs/runbooks/node-red-soldadura.md`, `context/03-servicios.md` y `BACKLOG.md`.
+
 ## 2026-10-15 - Produccion
 
 - Flujo Node-RED productivo actualizado: `tab_prod_soldadura_24h`, 112 nodos y 15 ramas de transformacion.

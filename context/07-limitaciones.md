@@ -18,29 +18,27 @@
 
 - **Impacto:** una detencion genera huecos de staging y las sesiones Ethernet/IP pueden no reconectar aunque el PLC responda por red.
 - **Evidencia:** incidentes del 2026-10-01 y huecos 2026-10-10 a 2026-10-14.
-- **Workaround actual:** verificar las 15 ramas y timestamps de staging despues de cada reinicio.
-- **Prioridad y siguiente paso:** P1 en `BACKLOG.md`; agregar watchdog y alertas por atraso.
+- **Control actual:** `lknHealthMonitor` registra cambios de nivel y `/api/lkn-health` permite verificar scheduler, fuente vacia, cobertura y atraso de staging.
+- **Riesgo residual:** el monitor detecta el efecto observable; no reinicia automaticamente una sesion Ethernet/IP.
 
 ## Cero y falta de lectura ambiguos - Confirmada
 
 - **Impacto:** el Dashboard puede mostrar cero sin probar que el PLC haya informado un cero explicito.
 - **Evidencia:** bloques ausentes en Tucker y MIG_1 que se ven como cero funcional.
 - **Workaround actual:** contrastar staging, estado de rama y CSV ante una investigacion.
-- **Prioridad y siguiente paso:** P1 en `BACKLOG.md`; modelar calidad/origen de lectura.
+- **Decision:** conservar la distincion como diagnostico tecnico y no agregarla al frontend mientras no exista una necesidad operativa del usuario.
 
 ## Huecos historicos - Confirmada
 
 - **Impacto:** reportes de fechas afectadas estan incompletos y no pueden reconstruirse desde LKN.
 - **Evidencia:** ausencia de filas entre 2026-10-10 y 2026-10-14.
-- **Workaround actual:** no fabricar ceros ni copiar otro dia; identificar fuente historica cerrada.
-- **Prioridad y siguiente paso:** P1 en `BACKLOG.md`; backfill solo con evidencia confiable.
+- **Decision:** se confirmo que no existe una fuente confiable para reconstruir esas fechas. Se conserva el hueco documentado y no se fabrican datos; no queda una tarea de backfill abierta.
 
-## Despliegue web no automatizado - Confirmada
+## Reinicio web dependiente de infraestructura - Confirmada
 
-- **Impacto:** un commit o push no demuestra que backend/frontend productivos ejecuten esa version.
-- **Evidencia:** no existe script versionado con el gestor y rutas del servidor real.
-- **Workaround actual:** ejecutar el procedimiento manual de `DEPLOY.md` y verificar endpoints.
-- **Prioridad y siguiente paso:** P1 en `BACKLOG.md`; relevar y automatizar despliegue/rollback.
+- **Impacto:** el repositorio no controla el gestor externo que hace pull/reinicio en el servidor.
+- **Control actual:** `DEPLOY.md` define el procedimiento y `scripts/verify-web-deployment.js` valida release, API, fuente LKN, scheduler y monitor despues de publicar.
+- **Riesgo residual:** el comando concreto del gestor sigue perteneciendo a la infraestructura del servidor y no debe inventarse en este repo.
 
 ## Estado del scheduler no persistente - Confirmada
 

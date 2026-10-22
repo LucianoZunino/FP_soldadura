@@ -1,5 +1,42 @@
 # ANALISIS - lkn_soft.produccion_horaria
 
+## Recuperacion de CELDA_7 del 2026-10-22
+
+La falta total de valores recientes de CELDA_7 no provenia del mapeo `maquina -> pieza`, del importador LKN ni de una desconexion del PLC. La transformacion ya habia sido corregida para leer `HORA[0]` en `00-01`, pero el endpoint Ethernet/IP `d106bad673723722` solo declaraba los cinco tags equivalentes terminados en `HORA[24]`.
+
+La funcion evalua las variables requeridas antes de filtrar horarios futuros. Si falta una variable agrega el tag a `faltantes` y aborta la preparacion de todo el mensaje SQL. Por eso la ausencia de los cinco `HORA[0]` anulaba tambien los bloques diurnos validos de las cinco piezas.
+
+La correccion se valido primero en Test mediante un endpoint aislado con los tags faltantes. El resultado para el dia operativo `2026-10-22` fue:
+
+- cinco maquinas de CELDA_7;
+- 15 filas positivas en tres bloques iniciados;
+- total 312;
+- sin escrituras de CELDA_7 en la tabla productiva durante la prueba aislada.
+
+Al promover inicialmente la configuracion con `PUT /flow`, Node-RED conservo dos endpoints con el mismo ID: uno global sin `HORA[0]` y otro acotado al flujo productivo con la correccion. La rama continuo resolviendo la configuracion global anterior. La solucion definitiva fue normalizar el arreglo completo de `/flows`, conservando un solo endpoint global corregido y haciendo que Test y Produccion lo compartan.
+
+Despues del despliegue definitivo se verifico:
+
+- un unico endpoint global, sin `z`, con cinco `HORA[0]` y cinco `HORA[24]`;
+- eliminacion del endpoint temporal Test;
+- 15 filas iniciales identicas en `produccion_horaria` y `produccion_horaria_test`;
+- incremento del sincronizador productivo de 162 filas/54 maquinas a 177 filas/59 maquinas;
+- presencia de las cinco piezas en `ferrosider_produccion_soldadura.produccion_hora` y avance del bloque activo;
+- comprobacion posterior con 20 filas, cinco maquinas y total 330 en ambas fuentes LKN y en el destino productivo, sin diferencias Test/Produccion.
+
+La recuperacion diurna queda comprobada. El contraste del proximo `00-01` contra el CSV cerrado sigue abierto para validar en operacion el indice de medianoche, sin impedir el uso actual de la rama.
+
+### Comparaciones posteriores
+
+La herramienta `scripts/compare-csv-production.js` compara las 24 horas por celda y pieza, interpreta una fila ausente con valor esperado cero como coincidencia funcional y puede limitarse a bloques cerrados.
+
+- Dia actual posterior al arreglo: 248 de 248 bloques cerrados coincidieron en Test contra el CSV vivo; ambos totalizaron 5489.
+- Dia cerrado 2026-10-21, anterior al arreglo: 1437 de 1488 bloques coincidieron. Hubo 51 diferencias y delta total -692.
+- De esas 51 diferencias, 50 fueron valores positivos de las cinco piezas de CELDA_7 ausentes en LKN por el endpoint incompleto.
+- La unica diferencia ajena a CELDA_7 fue `CELDA_8 / FRONT FLOOR LH OP.20 / 21-22`, un paso intermedio previamente aceptado.
+
+El dia 2026-10-21 sirve como evidencia del defecto anterior, no como aprobacion del endpoint corregido. La aprobacion vigente usa los bloques cerrados posteriores al despliegue; la primera jornada completa corregida se podra contrastar con el CSV de cierre siguiente.
+
 ## Promocion a Produccion del 2026-10-15
 
 Despues de la validacion en Test se promovieron las correcciones a las 15 ramas del flujo productivo `tab_prod_soldadura_24h`. El flujo paso de SHA-256 `a472f9fdf7fa005a45c168de2254a5741e03475b1c0aa3bf3392815ad03057ac` a `a5f4eb404466f39bf79aaa9b74fb0c80c5516758d449f979cd509217221f1a35` y se genero un respaldo recuperable.
@@ -12,7 +49,7 @@ El estado vigente es:
 - Un cero corrige durante el bucket y hasta 10 minutos despues; un cero tardio no borra un positivo cerrado.
 - Las funciones productivas escriben solo tablas productivas.
 
-La comparacion posterior incluyo 62 maquinas y 310 bloques cerrados disponibles: no se encontraron diferencias entre CSV vivo y staging productivo. Falta validar el primer cruce productivo real `00-01` de CELDA_7 y resolver por separado los huecos 2026-10-10 a 2026-10-14.
+La comparacion posterior incluyo 62 maquinas y 310 bloques cerrados disponibles: no se encontraron diferencias entre CSV vivo y staging productivo. Falta validar el primer cruce productivo real `00-01` de CELDA_7. Los huecos 2026-10-10 a 2026-10-14 se declararon no recuperables porque no existe una fuente cerrada confiable; no se fabricaran datos.
 
 La proteccion del importador ante una fuente vacia esta implementada y probada en el repo, pero requiere desplegar y reiniciar el backend web para considerarse activa en el proceso productivo.
 

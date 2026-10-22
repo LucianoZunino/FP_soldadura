@@ -1,12 +1,19 @@
 const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
+const {
+  CELDA_7_SOURCE_ENDPOINT_ID,
+  TEST_CELDA_7_ENDPOINT_ID,
+  assertCelda7Endpoint,
+  buildCelda7Endpoint
+} = require('./node-red-celda7-config');
 
 const NODE_RED_BASE_URL = String(process.env.NODE_RED_BASE_URL || '').replace(/\/+$/, '');
 const PRODUCTION_FLOW_ID = 'tab_prod_soldadura_24h';
 const TEST_FLOW_ID = '94735d01267fe806';
 const EXPECTED_PRODUCTION_SHA256 = 'a472f9fdf7fa005a45c168de2254a5741e03475b1c0aa3bf3392815ad03057ac';
 const PROMOTED_PRODUCTION_SHA256 = 'a5f4eb404466f39bf79aaa9b74fb0c80c5516758d449f979cd509217221f1a35';
+const CELDA_7_ENDPOINT_FIX_SHA256 = '138ad92613faf515c09276663272512700379b3390a0993eb8a25c225aafd95f';
 const PRODUCTION_CONTEXT_PREFIX = 'prod_horaria_v4|';
 
 async function readJson(url) {
@@ -133,11 +140,55 @@ function buildProductionFlow(productionFlow, testFlow) {
     if (!replacements.has(node.id)) return node;
     return { ...node, func: replacements.get(node.id) };
   });
+  const { configs: _configs, ...flowWithoutScopedConfigs } = productionFlow;
 
   return {
-    flow: { ...productionFlow, nodes },
+    flow: { ...flowWithoutScopedConfigs, nodes },
     branches
   };
+}
+
+function buildFullDeployment(allFlows, productionFlow, sourceCelda7Endpoint) {
+  const celda7Endpoint = buildCelda7Endpoint(sourceCelda7Endpoint, {
+    id: CELDA_7_SOURCE_ENDPOINT_ID,
+    name: sourceCelda7Endpoint.name,
+    cycletime: sourceCelda7Endpoint.cycletime
+  });
+  delete celda7Endpoint.z;
+
+  const productionNodes = new Map(
+    productionFlow.nodes.map((node) => [node.id, node])
+  );
+  let endpointInserted = false;
+  const flows = [];
+
+  for (const node of allFlows) {
+    if (node.id === TEST_CELDA_7_ENDPOINT_ID) continue;
+
+    if (node.id === CELDA_7_SOURCE_ENDPOINT_ID) {
+      if (!endpointInserted) {
+        flows.push(celda7Endpoint);
+        endpointInserted = true;
+      }
+      continue;
+    }
+
+    if (productionNodes.has(node.id)) {
+      flows.push(productionNodes.get(node.id));
+      continue;
+    }
+
+    if (node.id === 'test_input_7cd9238c55bcdef3') {
+      flows.push({ ...node, endpoint: CELDA_7_SOURCE_ENDPOINT_ID });
+      continue;
+    }
+
+    flows.push(node);
+  }
+
+  if (!endpointInserted) flows.push(celda7Endpoint);
+
+  return { flows, celda7Endpoint };
 }
 
 async function putFlow(flow) {
@@ -158,12 +209,41 @@ async function putFlow(flow) {
   return { status: response.status, response: text || null };
 }
 
+async function putAllFlows(flows) {
+  const response = await fetch(`${NODE_RED_BASE_URL}/flows`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Node-RED-Deployment-Type': 'flows'
+    },
+    body: JSON.stringify(flows)
+  });
+  const text = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`POST /flows fallo con HTTP ${response.status}: ${text}`);
+  }
+
+  return { status: response.status, response: text || null };
+}
+
 async function rollback(backupPath) {
   if (!process.argv.includes('--confirm-production')) {
     throw new Error('El rollback requiere --confirm-production.');
   }
 
   const backup = JSON.parse(fs.readFileSync(path.resolve(backupPath), 'utf8'));
+
+  if (Array.isArray(backup)) {
+    const response = await putAllFlows(backup);
+    console.log(JSON.stringify({
+      mode: 'rollback',
+      backup: path.resolve(backupPath),
+      restoredFullFlowsSha256: sha256(backup),
+      ...response
+    }, null, 2));
+    return;
+  }
 
   if (backup.id !== PRODUCTION_FLOW_ID) {
     throw new Error(`El respaldo no corresponde al flujo ${PRODUCTION_FLOW_ID}.`);
@@ -198,25 +278,69 @@ async function main() {
   const confirmed = process.argv.includes('--confirm-production');
   const productionFlow = await readJson(`${NODE_RED_BASE_URL}/flow/${PRODUCTION_FLOW_ID}`);
   const testFlow = await readJson(`${NODE_RED_BASE_URL}/flow/${TEST_FLOW_ID}`);
+  const allFlows = await readJson(`${NODE_RED_BASE_URL}/flows`);
+  const celda7Endpoints = allFlows.filter(
+    (node) => node.id === CELDA_7_SOURCE_ENDPOINT_ID
+  );
+  const sourceCelda7Endpoint = celda7Endpoints.find((node) => !node.z) || celda7Endpoints[0];
+
+  if (!sourceCelda7Endpoint) {
+    throw new Error(`No se encontro el endpoint CELDA_7 ${CELDA_7_SOURCE_ENDPOINT_ID}.`);
+  }
+
   const currentSha256 = sha256(productionFlow);
 
-  if (![EXPECTED_PRODUCTION_SHA256, PROMOTED_PRODUCTION_SHA256].includes(currentSha256)) {
+  if (![EXPECTED_PRODUCTION_SHA256, PROMOTED_PRODUCTION_SHA256, CELDA_7_ENDPOINT_FIX_SHA256].includes(currentSha256)) {
     throw new Error(
       `La huella productiva no es conocida. Anterior=${EXPECTED_PRODUCTION_SHA256}, promovida=${PROMOTED_PRODUCTION_SHA256}, actual=${currentSha256}.`
     );
   }
 
   const { flow, branches } = buildProductionFlow(productionFlow, testFlow);
+  const { flows: targetFlows, celda7Endpoint } = buildFullDeployment(
+    allFlows,
+    flow,
+    sourceCelda7Endpoint
+  );
+  const celda7EndpointValidation = assertCelda7Endpoint(
+    celda7Endpoint,
+    'endpoint productivo CELDA_7 propuesto'
+  );
   const targetSha256 = sha256(flow);
+  const testCelda7Input = allFlows.find(
+    (node) => node.id === 'test_input_7cd9238c55bcdef3'
+  );
+  const endpointNeedsUpdate = celda7Endpoints.length !== 1 || (() => {
+    try {
+      assertCelda7Endpoint(celda7Endpoints[0]);
+      return false;
+    } catch (_) {
+      return true;
+    }
+  })();
+  const testEndpointNeedsCleanup = allFlows.some(
+    (node) => node.id === TEST_CELDA_7_ENDPOINT_ID
+  ) || !testCelda7Input || testCelda7Input.endpoint !== CELDA_7_SOURCE_ENDPOINT_ID;
+  const operation = currentSha256 === targetSha256 &&
+    !endpointNeedsUpdate &&
+    !testEndpointNeedsCleanup
+    ? 'no-op'
+    : 'update';
   const summary = {
     mode: shouldDeploy ? 'deploy' : 'dry-run',
-    operation: currentSha256 === targetSha256 ? 'no-op' : 'update',
+    operation,
     productionFlow: PRODUCTION_FLOW_ID,
     sourceTestFlow: TEST_FLOW_ID,
     currentSha256,
     targetSha256,
     branchCount: branches.length,
     productionContextPrefix: PRODUCTION_CONTEXT_PREFIX,
+    celda7Endpoint: {
+      id: CELDA_7_SOURCE_ENDPOINT_ID,
+      duplicateEndpointsRemoved: Math.max(celda7Endpoints.length - 1, 0),
+      testEndpointRemoved: testEndpointNeedsCleanup,
+      ...celda7EndpointValidation
+    },
     branches
   };
 
@@ -225,7 +349,7 @@ async function main() {
     return;
   }
 
-  if (currentSha256 === targetSha256) {
+  if (operation === 'no-op') {
     console.log(JSON.stringify(summary, null, 2));
     return;
   }
@@ -237,19 +361,40 @@ async function main() {
   const backupPath = path.resolve(
     'backups',
     'node-red',
-    `${localTimestamp()}-production-flow-before-hourly-corrections.json`
+    `${localTimestamp()}-production-flow-before-celda7-endpoint-fix.json`
   );
   fs.mkdirSync(path.dirname(backupPath), { recursive: true });
-  fs.writeFileSync(backupPath, `${JSON.stringify(productionFlow, null, 2)}\n`);
+  fs.writeFileSync(backupPath, `${JSON.stringify(allFlows, null, 2)}\n`);
 
-  const response = await putFlow(flow);
+  const response = await putAllFlows(targetFlows);
   const deployed = await readJson(`${NODE_RED_BASE_URL}/flow/${PRODUCTION_FLOW_ID}`);
   const deployedSha256 = sha256(deployed);
+  const deployedAllFlows = await readJson(`${NODE_RED_BASE_URL}/flows`);
+  const deployedEndpoints = deployedAllFlows.filter(
+    (node) => node.id === CELDA_7_SOURCE_ENDPOINT_ID
+  );
+  const deployedTestInput = deployedAllFlows.find(
+    (node) => node.id === 'test_input_7cd9238c55bcdef3'
+  );
 
-  if (deployedSha256 !== targetSha256) {
-    await putFlow(productionFlow);
+  try {
+    if (deployedSha256 !== targetSha256) {
+      throw new Error(`huella esperada=${targetSha256}, actual=${deployedSha256}`);
+    }
+    if (deployedEndpoints.length !== 1) {
+      throw new Error(`se encontraron ${deployedEndpoints.length} endpoints CELDA_7`);
+    }
+    assertCelda7Endpoint(deployedEndpoints[0], 'endpoint productivo desplegado CELDA_7');
+    if (!deployedTestInput || deployedTestInput.endpoint !== CELDA_7_SOURCE_ENDPOINT_ID) {
+      throw new Error('Test no quedo compartiendo el endpoint productivo corregido');
+    }
+    if (deployedAllFlows.some((node) => node.id === TEST_CELDA_7_ENDPOINT_ID)) {
+      throw new Error('el endpoint aislado Test no fue retirado');
+    }
+  } catch (error) {
+    await putAllFlows(allFlows);
     throw new Error(
-      `La verificacion post-deploy fallo y se ejecuto rollback. Esperada=${targetSha256}, actual=${deployedSha256}.`
+      `La verificacion post-deploy fallo y se ejecuto rollback: ${error.message}.`
     );
   }
 
@@ -262,7 +407,15 @@ async function main() {
   }, null, 2));
 }
 
-main().catch((error) => {
-  console.error(error.stack || error.message);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error.stack || error.message);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = {
+  buildFullDeployment,
+  buildProductionFlow,
+  promoteFunction
+};

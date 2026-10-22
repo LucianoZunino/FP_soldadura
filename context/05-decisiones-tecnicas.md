@@ -58,6 +58,18 @@
 
 **Razon:** editar 15 ramas manualmente es dificil de auditar y puede mezclar destinos Test/Produccion.
 
+## Salud LKN solo operativa
+
+**Decision:** controlar scheduler, errores, fuente vacia, atraso y cobertura desde el backend, logs y `/api/lkn-health`; no agregar estos estados al frontend.
+
+**Razon:** son señales de infraestructura para diagnostico y despliegue, no informacion necesaria para operar el reporte diario.
+
+## Huecos sin fuente confiable
+
+**Decision:** no reconstruir ni fabricar datos para fechas donde no existe una fuente cerrada confiable.
+
+**Razon:** completar con ceros o copiar otro dia produciria un historico falso. Los huecos confirmados permanecen documentados y fuera del backlog.
+
 ## Evidencia historica
 
 El detalle de descubrimiento, comparaciones y decisiones superadas permanece en `docs/ANALISIS_LKN_PRODUCCION_HORARIA.md` y `docs/CHANGELOG.md`. Este archivo contiene solo decisiones vigentes.

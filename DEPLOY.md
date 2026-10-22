@@ -28,6 +28,10 @@ SYNC_SOURCE=lkn
 LKN_DB_NAME=lkn_soft
 LKN_AUTO_SYNC_ENABLED=true
 LKN_SYNC_SECONDS=15
+LKN_HEALTH_MONITOR_ENABLED=true
+LKN_HEALTH_CHECK_SECONDS=60
+LKN_HEALTH_MAX_SOURCE_LAG_SECONDS=900
+LKN_HEALTH_MIN_MACHINES=55
 LIVE_CSV_AUTO_SYNC_ENABLED=false
 ```
 
@@ -51,8 +55,13 @@ SYNC_SOURCE=lkn
 LKN_DB_NAME=lkn_soft
 LKN_AUTO_SYNC_ENABLED=true
 LKN_SYNC_SECONDS=15
+LKN_HEALTH_MONITOR_ENABLED=true
+LKN_HEALTH_CHECK_SECONDS=60
+LKN_HEALTH_MAX_SOURCE_LAG_SECONDS=900
+LKN_HEALTH_MIN_MACHINES=55
 LIVE_CSV_AUTO_SYNC_ENABLED=false
 APP_TIME_ZONE=America/Argentina/Buenos_Aires
+APP_RELEASE=COMMIT_DESPLEGADO
 ```
 
 En el servidor que ejecuta la aplicacion:
@@ -63,11 +72,15 @@ En el servidor que ejecuta la aplicacion:
 4. Ejecutar `npm run db:init` solo despues de verificar `DB_NAME` productivo.
 5. Ejecutar `npm run frontend:build`.
 6. Reiniciar backend y publicacion frontend con el gestor real del servidor.
-7. Confirmar `/api/health` y `/api/live-sync/status`.
-8. Verificar que `source=lkn`, el scheduler este iniciado y `lastError` sea nulo.
-9. Comparar al menos un bloque cerrado contra LKN o CSV de control.
+7. Definir `APP_RELEASE` con el SHA del commit desplegado antes de reiniciar.
+8. Confirmar `/api/health`, `/api/live-sync/status` y `/api/lkn-health`.
+9. Ejecutar `node scripts\verify-web-deployment.js --base-url=URL --release=SHA`.
+10. Verificar que `source=lkn`, el scheduler este iniciado, `lastError` sea nulo y el monitor no este en `critical`.
+11. Comparar bloques cerrados con `node scripts\compare-csv-production.js --date=YYYY-MM-DD --csv=RUTA --schema=SCHEMA --closed-only`.
 
 El repositorio no contiene actualmente el comando del gestor de procesos productivo. No inventar `pm2`, servicio Windows o ruta de publicacion: registrarlos cuando sean confirmados.
+
+La publicacion se considera validada solo cuando `verify-web-deployment.js` devuelve `ok=true`. El script no reinicia servicios ni modifica datos.
 
 ## Produccion Node-RED
 
@@ -100,7 +113,9 @@ El backup es operacional y esta ignorado por Git. Verificar que exista en la maq
 - Node-RED productivo conserva 15 ramas y escribe solo tablas productivas.
 - El staging LKN actualiza 62 maquinas para el dia operativo.
 - El backend importa sin errores de mapeo y omite horas futuras.
+- `/api/lkn-health` no informa nivel `critical`.
 - El frontend muestra el mismo total que `/api/dashboard`.
+- La comparacion de bloques cerrados contra el CSV no tiene diferencias no explicadas.
 - El cambio y su evidencia quedan en `docs/DEPLOY_LOG.md`.
 
 ## Rollback web

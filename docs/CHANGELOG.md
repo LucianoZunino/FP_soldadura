@@ -1,5 +1,20 @@
 # CHANGELOG - FP_Soldadura
 
+## 2026-10-22
+
+- Se agrega monitoreo interno de salud LKN con deteccion de scheduler detenido, errores, fuente vacia, atraso de staging y baja cobertura de maquinas; se informa por logs y `GET /api/lkn-health`, sin cambios en el frontend.
+- Se incorpora una herramienta reproducible para comparar CSV y base por celda, pieza y hora, incluyendo un modo que considera solo bloques cerrados.
+- Se agrega un verificador post-deploy para validar release, API, fuente LKN, scheduler y salud de staging.
+- En Test, una fila centinela se conservo ante `empty-source`; los 248 bloques cerrados posteriores a la correccion coincidieron exactamente con el CSV vivo, total 5489.
+- El contraste cerrado del 21/10 explico 50 de sus 51 diferencias por la ausencia previa de CELDA_7; la restante corresponde al paso intermedio aceptado `CELDA_8 / FRONT FLOOR LH OP.20`.
+- Se acepta como no recuperable el hueco historico sin fuente confiable y se retira su backfill del backlog. La diferencia entre cero y falta de lectura queda como diagnostico tecnico, sin exponerla en la interfaz.
+- Se corrige la adquisicion de CELDA_7: el endpoint Ethernet/IP compartido no tenia declarados los cinco tags `HORA[0]` que la transformacion requiere para el bloque `00-01`.
+- La ausencia de esos tags hacia fallar la validacion completa de la rama y descartaba tambien las horas diurnas, por eso CELDA_7 no generaba filas aunque el PLC estuviera disponible.
+- Test valido primero una conexion aislada: 15 filas positivas, cinco piezas, tres bloques horarios y total 312 para el dia operativo.
+- Produccion y Test pasan a compartir un unico endpoint global corregido, con cinco tags `HORA[0]` y cinco `HORA[24]`; se eliminan el endpoint duplicado y la conexion temporal de prueba.
+- El despliegue productivo ahora respalda y reemplaza el conjunto completo de flujos cuando debe normalizar configuraciones globales, y verifica endpoint unico, tags requeridos y referencia Test antes de aceptar el cambio.
+- Se agregan pruebas automaticas para la configuracion de tags y para impedir la reaparicion de endpoints duplicados.
+
 ## 2026-10-19
 
 - La API incorpora `standardPiecesPerHour` con un estandar fijo de 24 piezas por hora para todas las filas.

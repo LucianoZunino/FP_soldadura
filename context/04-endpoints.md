@@ -8,7 +8,11 @@ La API usa JSON y actualmente no implementa autenticacion. Los errores de los ha
 
 ### `GET /api/health`
 
-Devuelve `ok`, fecha calendario del backend y `operationalDate`.
+Devuelve `ok`, `release`, fecha calendario del backend y `operationalDate`. `release` toma `APP_RELEASE`; en Produccion debe contener el commit desplegado.
+
+### `GET /api/lkn-health`
+
+Devuelve el control tecnico de adquisicion LKN: nivel `ok|warning|critical`, causas, umbrales, filas, maquinas, atraso de staging y estado del scheduler. Es un endpoint operativo; el frontend no lo consulta.
 
 ### `GET /api/live-sync/status`
 

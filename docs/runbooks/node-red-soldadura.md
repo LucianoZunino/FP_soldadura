@@ -18,6 +18,7 @@ Diagnosticar y operar las 15 ramas que adquieren produccion horaria desde PLC y 
 - Cero: puede corregir durante el bloque y hasta 10 minutos despues.
 - Cero tardio sobre positivo: conserva el positivo para evitar un borrado por reinicio.
 - CELDA_7 `00-01`: usa `HORA[0]`.
+- El endpoint global de CELDA_7 debe declarar cinco tags `HORA[0]` y cinco `HORA[24]`; Test y Produccion comparten ese unico endpoint.
 - Resto: conserva el indice de medianoche de su rama; no aplicar cambios globales sin evidencia PLC.
 
 ## Dry-run
@@ -34,6 +35,7 @@ Revisar:
 - 15 ramas detectadas;
 - SHA actual y objetivo;
 - indices de medianoche;
+- un solo endpoint global de CELDA_7, sin configuraciones duplicadas;
 - ausencia de tablas productivas en Test;
 - reglas de futuro y ventana de cero.
 
@@ -50,10 +52,11 @@ El script crea un JSON en `backups/node-red/`, verifica la huella posterior y re
 ## Validacion posterior
 
 1. Repetir el dry-run; debe informar `operation=no-op`.
-2. Confirmar que staging sigue actualizando y no aparecen buckets futuros.
-3. Consultar `/api/live-sync/status` despues de al menos un ciclo backend.
-4. Comparar todos los bloques cerrados disponibles contra CSV.
-5. En el siguiente cruce, validar especialmente CELDA_7 `00-01`.
+2. Confirmar exactamente un endpoint `d106bad673723722`, sin `z`, y ausencia de `test_all_celda7_endpoint_v3`.
+3. Confirmar que staging sigue actualizando y no aparecen buckets futuros.
+4. Consultar `/api/live-sync/status` despues de al menos un ciclo backend; CELDA_7 debe sumar cinco maquinas y sus filas horarias.
+5. Comparar todos los bloques cerrados disponibles contra CSV.
+6. En el siguiente cruce, validar especialmente CELDA_7 `00-01`.
 
 ## Rollback
 
@@ -75,5 +78,6 @@ Despues del rollback verificar SHA, escritura de staging y un bloque cerrado. No
 - Flujo productivo: `tab_prod_soldadura_24h` en el servidor Node-RED operativo.
 - SHA previo: `a472f9fdf7fa005a45c168de2254a5741e03475b1c0aa3bf3392815ad03057ac`.
 - SHA promovido: `a5f4eb404466f39bf79aaa9b74fb0c80c5516758d449f979cd509217221f1a35`.
-- Respaldo: `backups/node-red/2026-10-15T11-15-05-production-flow-before-hourly-corrections.json`.
-- SHA-256 del respaldo: `3a7a372374358625e934fbcab2c95d3d8c47495023c39cc2d1d41fd54caf6867`.
+- Endpoint CELDA_7: unico, global, cinco `HORA[0]` y cinco `HORA[24]`.
+- Respaldo integral mas reciente: `backups/node-red/2026-10-22T08-55-20-production-flow-before-celda7-endpoint-fix.json`.
+- SHA-256 del respaldo: `e3bfabd32316b7592f2c345a4a67e26da08df63c9a078dd3ebe26640711b11ec`.

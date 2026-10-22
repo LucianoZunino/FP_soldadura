@@ -1,4 +1,12 @@
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
+const {
+  CELDA_7_SOURCE_ENDPOINT_ID,
+  TEST_CELDA_7_ENDPOINT_ID,
+  assertCelda7Endpoint,
+  buildCelda7Endpoint
+} = require('./node-red-celda7-config');
 
 const NODE_RED_BASE_URL = String(process.env.NODE_RED_BASE_URL || '').replace(/\/+$/, '');
 const SOURCE_FLOW_ID = 'tab_prod_soldadura_24h';
@@ -6,6 +14,19 @@ const TEST_FLOW_LABEL = 'TEST - SOLDADURA CORRECCION HORARIA';
 const LEGACY_TEST_FLOW_LABEL = 'TEST - TUCKER CORRECCION HORARIA';
 const ZERO_RESET_GRACE_MINUTES = 10;
 const CELDA_7_BRANCH_PATTERN = /\bCELDA_7\b/;
+
+function localTimestamp() {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23'
+  }).format(new Date()).replace(', ', 'T').replace(/:/g, '-');
+}
 
 async function readJson(url) {
   const response = await fetch(url);
@@ -223,7 +244,7 @@ return msg;`;
   return functionCode;
 }
 
-function buildTestFlow(sourceFlow, targetFlowId) {
+function buildTestFlow(sourceFlow, targetFlowId, sourceCelda7Endpoint) {
   const sourceTransforms = sourceFlow.nodes.filter(
     (node) => node.type === 'function' && /INSERT INTO produccion_horaria\s/i.test(String(node.func || ''))
   );
@@ -239,6 +260,27 @@ function buildTestFlow(sourceFlow, targetFlowId) {
   const mysqlId = 'test_all_mysql_v2';
   const errorId = 'test_all_error_v2';
   const successId = 'test_all_success_v2';
+  let sourceCelda7Validation = null;
+
+  try {
+    sourceCelda7Validation = assertCelda7Endpoint(
+      sourceCelda7Endpoint,
+      'endpoint compartido CELDA_7'
+    );
+  } catch (_) {
+    // Antes de la promocion, Test necesita su propia sesion con HORA[0].
+  }
+
+  const useIsolatedCelda7Endpoint = !sourceCelda7Validation;
+  const testCelda7Endpoint = useIsolatedCelda7Endpoint
+    ? buildCelda7Endpoint(sourceCelda7Endpoint, {
+        id: TEST_CELDA_7_ENDPOINT_ID,
+        z: targetFlowId,
+        name: 'TEST - CELDA 7 CON HORA 0',
+        // La prueba usa una sesion aislada y un ciclo mas conservador que Produccion.
+        cycletime: '1000'
+      })
+    : sourceCelda7Endpoint;
   const nodes = [
     {
       id: 'test_all_comment_v2',
@@ -264,6 +306,10 @@ function buildTestFlow(sourceFlow, targetFlowId) {
     const limiterId = testId('limiter', branch.limiter.id);
     const transformId = testId('transform', branch.transform.id);
     const y = 120 + index * 80;
+    const isCelda7 = CELDA_7_BRANCH_PATTERN.test(branch.transform.name);
+    const targetEndpoint = isCelda7
+      ? (useIsolatedCelda7Endpoint ? TEST_CELDA_7_ENDPOINT_ID : CELDA_7_SOURCE_ENDPOINT_ID)
+      : branch.input.endpoint;
     const { functionCode, midnightIndex } = buildTestFunction(
       branch.transform.func,
       branch.transform.name
@@ -278,6 +324,7 @@ function buildTestFlow(sourceFlow, targetFlowId) {
         id: inputId,
         z: targetFlowId,
         name: `TEST - ${branch.input.name}`,
+        endpoint: targetEndpoint,
         x: 260,
         y,
         wires: [[limiterId]]
@@ -306,7 +353,7 @@ function buildTestFlow(sourceFlow, targetFlowId) {
     branchSummary.push({
       input: branch.input.name,
       transform: branch.transform.name,
-      endpoint: branch.input.endpoint,
+      endpoint: targetEndpoint,
       midnightIndex,
       functionSha256: crypto.createHash('sha256').update(functionCode).digest('hex')
     });
@@ -410,10 +457,19 @@ function buildTestFlow(sourceFlow, targetFlowId) {
       ].join(' '),
       env: [],
       nodes,
-      configs: [],
+      configs: useIsolatedCelda7Endpoint ? [testCelda7Endpoint] : [],
       subflows: []
     },
-    branchSummary
+    branchSummary,
+    celda7Endpoint: {
+      id: useIsolatedCelda7Endpoint ? TEST_CELDA_7_ENDPOINT_ID : CELDA_7_SOURCE_ENDPOINT_ID,
+      isolated: useIsolatedCelda7Endpoint,
+      cycletime: testCelda7Endpoint.cycletime,
+      ...(sourceCelda7Validation || assertCelda7Endpoint(
+        testCelda7Endpoint,
+        'endpoint aislado Test CELDA_7'
+      ))
+    }
   };
 }
 
@@ -429,7 +485,19 @@ async function main() {
   );
   const targetFlowId = existing ? existing.id : 'tab_test_soldadura_all_v2';
   const sourceFlow = await readJson(`${NODE_RED_BASE_URL}/flow/${SOURCE_FLOW_ID}`);
-  const { flow, branchSummary } = buildTestFlow(sourceFlow, targetFlowId);
+  const sourceCelda7Endpoint = allFlows.find(
+    (node) => node.id === CELDA_7_SOURCE_ENDPOINT_ID
+  );
+
+  if (!sourceCelda7Endpoint) {
+    throw new Error(`No se encontro el endpoint CELDA_7 ${CELDA_7_SOURCE_ENDPOINT_ID}.`);
+  }
+
+  const { flow, branchSummary, celda7Endpoint } = buildTestFlow(
+    sourceFlow,
+    targetFlowId,
+    sourceCelda7Endpoint
+  );
   const summary = {
     mode: shouldDeploy ? 'deploy' : 'dry-run',
     operation: existing ? 'update' : 'create',
@@ -440,6 +508,7 @@ async function main() {
     nodeCount: flow.nodes.length,
     queueRate: '20 msg/s',
     zeroResetGraceMinutes: ZERO_RESET_GRACE_MINUTES,
+    celda7Endpoint,
     branches: branchSummary
   };
 
@@ -451,6 +520,22 @@ async function main() {
   const endpoint = existing
     ? `${NODE_RED_BASE_URL}/flow/${targetFlowId}`
     : `${NODE_RED_BASE_URL}/flow`;
+  const previousFlow = existing
+    ? await readJson(`${NODE_RED_BASE_URL}/flow/${targetFlowId}`)
+    : null;
+  const backupPath = previousFlow
+    ? path.resolve(
+        'backups',
+        'node-red',
+        `${localTimestamp()}-test-flow-before-celda7-endpoint-fix.json`
+      )
+    : null;
+
+  if (backupPath) {
+    fs.mkdirSync(path.dirname(backupPath), { recursive: true });
+    fs.writeFileSync(backupPath, `${JSON.stringify(previousFlow, null, 2)}\n`);
+  }
+
   const response = await fetch(endpoint, {
     method: existing ? 'PUT' : 'POST',
     headers: {
@@ -465,14 +550,49 @@ async function main() {
     throw new Error(`${existing ? 'PUT' : 'POST'} /flow fallo con HTTP ${response.status}: ${responseText}`);
   }
 
+  const deployedFlowId = existing ? targetFlowId : responseText;
+  const deployed = await readJson(`${NODE_RED_BASE_URL}/flow/${deployedFlowId}`);
+  const deployedInput = deployed.nodes.find(
+    (node) => node.name === 'TEST - CELDA_7 - ALL PRODUCCION 24H'
+  );
+
+  try {
+    if (!deployedInput || deployedInput.endpoint !== celda7Endpoint.id) {
+      throw new Error('La entrada Test de CELDA_7 no usa el endpoint esperado.');
+    }
+    if (celda7Endpoint.isolated) {
+      const deployedEndpoint = (deployed.configs || []).find(
+        (config) => config.id === TEST_CELDA_7_ENDPOINT_ID
+      );
+      assertCelda7Endpoint(deployedEndpoint, 'endpoint desplegado Test CELDA_7');
+    }
+  } catch (error) {
+    if (previousFlow) {
+      await fetch(`${NODE_RED_BASE_URL}/flow/${targetFlowId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Node-RED-Deployment-Type': 'flows'
+        },
+        body: JSON.stringify(previousFlow)
+      });
+    }
+    throw new Error(`La verificacion post-deploy fallo y se intento rollback: ${error.message}`);
+  }
+
   console.log(JSON.stringify({
     ...summary,
+    backupPath,
     status: response.status,
     response: responseText || null
   }, null, 2));
 }
 
-main().catch((error) => {
-  console.error(error.stack || error.message);
-  process.exitCode = 1;
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(error.stack || error.message);
+    process.exitCode = 1;
+  });
+}
+
+module.exports = { buildTestFlow, buildTestFunction };

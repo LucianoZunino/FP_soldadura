@@ -16,6 +16,10 @@ const {
   upsertLknMachineMapping
 } = require('./services/lknImporter');
 const { getLknAutoSyncStatus, runLknAutoSync, startLknAutoSync } = require('./services/lknAutoSync');
+const {
+  getLknHealth,
+  startLknHealthMonitor
+} = require('./services/lknHealthMonitor');
 const { getCatalogs, getDashboard, getShift } = require('./services/productionService');
 const { createGeneralSummaryExport } = require('./services/summaryExportService');
 const { currentOperationalDate, normalizeDate, todayIsoDate } = require('./utils/dates');
@@ -48,9 +52,18 @@ app.use(express.json());
 app.get('/api/health', (req, res) => {
   res.json({
     ok: true,
+    release: getEnv('APP_RELEASE', 'unknown'),
     date: todayIsoDate(),
     operationalDate: currentOperationalDate()
   });
+});
+
+app.get('/api/lkn-health', async (req, res, next) => {
+  try {
+    res.json(await getLknHealth());
+  } catch (error) {
+    next(error);
+  }
 });
 
 app.post('/api/import', async (req, res, next) => {
@@ -224,5 +237,8 @@ app.listen(port, () => {
     console.log(`CSV auto-sync enabled every ${getLiveCsvSyncStatus().intervalSeconds}s`);
   } else if (syncSource() === 'lkn' && startLknAutoSync()) {
     console.log(`LKN auto-sync enabled every ${getLknAutoSyncStatus().intervalSeconds}s`);
+    if (startLknHealthMonitor()) {
+      console.log('LKN health monitor enabled');
+    }
   }
 });

@@ -35,6 +35,8 @@ npm run frontend:build
 npm run db:init
 node scripts\deploy-node-red-all-machines-test.js
 node scripts\deploy-node-red-all-machines-production.js
+node scripts\compare-csv-production.js --date=YYYY-MM-DD --csv=RUTA --schema=SCHEMA --closed-only
+node scripts\verify-web-deployment.js --base-url=URL --release=SHA
 ```
 
 Los scripts Node-RED son `dry-run` por defecto. La operacion productiva y su rollback requieren confirmacion explicita; consultar [DEPLOY.md](./DEPLOY.md).
@@ -46,7 +48,8 @@ Antes de ejecutarlos se debe definir `NODE_RED_BASE_URL` en la sesion local; la 
 
 - `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`.
 - `SYNC_SOURCE=lkn|csv`.
-- `LKN_DB_NAME`, `LKN_AUTO_SYNC_ENABLED`, `LKN_SYNC_SECONDS`.
+- `LKN_DB_NAME`, `LKN_AUTO_SYNC_ENABLED`, `LKN_SYNC_SECONDS` y variables `LKN_HEALTH_*`.
+- `APP_RELEASE` para identificar el commit desplegado.
 - `CSV_PATH`, `LIVE_CSV_PATH`, `LIVE_CSV_AUTO_SYNC_ENABLED`, `LIVE_REFRESH_SECONDS`.
 - `ARTICLES_XLSX_PATH`, `APP_TIME_ZONE`, `PORT`.
 - `VITE_API_BASE`, `VITE_AUTO_DASHBOARD_REFRESH`.

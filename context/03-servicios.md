@@ -33,6 +33,17 @@ Invariantes:
 
 El estado se reinicia al reiniciar el proceso. La evidencia persistente permanece en las tablas y logs del entorno.
 
+## Monitor interno LKN
+
+`backend/src/services/lknHealthMonitor.js` controla en segundo plano:
+
+- scheduler habilitado e iniciado;
+- ultimo error y respuesta `empty-source`;
+- filas y maquinas disponibles para el dia operativo;
+- atraso de `lkn_soft.produccion_horaria` respecto del servidor MySQL.
+
+Solo registra en logs cuando cambia el nivel o la causa, para evitar ruido cada 15 segundos. El estado tecnico se consulta en `GET /api/lkn-health`; no se muestra en el frontend.
+
 ## Importadores CSV
 
 - `csvImporter.js`: importa una fecha historica o un archivo indicado manualmente.
@@ -55,15 +66,17 @@ Las 15 ramas productivas adquieren 62 maquinas desde PLC y hacen upsert en LKN. 
 - permitir que cero corrija un positivo durante el bucket y hasta 10 minutos despues;
 - proteger el positivo historico frente a ceros tardios por reinicio;
 - usar `HORA[0]` para `00-01` en CELDA_7;
+- declarar en el endpoint global de CELDA_7 los cinco tags `HORA[0]` y los cinco `HORA[24]` requeridos;
 - conservar el indice de medianoche propio del resto de las ramas.
 
-El despliegue no se hace editando manualmente cada funcion. Se usa el script productivo versionado y su validacion por SHA-256.
+Test y Produccion comparten un unico endpoint global de CELDA_7. El despliegue no se hace editando manualmente cada funcion o endpoint: se usa el script productivo versionado, que valida la huella, respalda `/flows`, elimina configuraciones duplicadas y verifica el resultado.
 
 ## Evidencia
 
 - `backend/src/server.js`
 - `backend/src/services/lknImporter.js`
 - `backend/src/services/lknAutoSync.js`
+- `backend/src/services/lknHealthMonitor.js`
 - `backend/src/services/liveCsvSync.js`
 - `backend/src/services/productionService.js`
 - `scripts/deploy-node-red-all-machines-production.js`

@@ -8,7 +8,9 @@
     "backend:dev": "npm --prefix backend run dev",
     "frontend:dev": "npm --prefix frontend run dev",
     "frontend:build": "npm --prefix frontend run build",
-    "frontend:preview": "npm --prefix frontend run preview"
+    "frontend:preview": "npm --prefix frontend run preview",
+    "compare:csv": "node scripts/compare-csv-production.js",
+    "verify:deploy": "node scripts/verify-web-deployment.js"
   },
   "devDependencies": {
     "concurrently": "^9.2.1"
