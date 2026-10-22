@@ -1,5 +1,11 @@
 # DEPLOY_LOG - FP_Soldadura
 
+## 2026-10-22 - Orden prioritario de prensas
+
+- Cambio preparado para Test y Produccion: `LINEA VERSON` y `LINEA SCHULER` se ubican antes que todas las demas maquinas.
+- La prioridad se aplica en la matriz del backend, por lo que alcanza Dashboard, turnos, historial, detalle, resumen general y exportaciones sin alterar datos ni configuracion de sincronizacion.
+- Archivos involucrados: `backend/src/services/productionService.js`, `backend/test/productionService.test.js`, `docs/CHANGELOG.md` y `docs/DEPLOY_LOG.md`.
+
 ## 2026-10-22 - Publicacion del commit de controles LKN
 
 - Commit `66c77bd` (`corregir celda 7 y agregar controles lkn`) pusheado a `origin/main`.

@@ -7,6 +7,11 @@ const {
 } = require('../constants/production');
 const { isFutureHourForDate, normalizeDate } = require('../utils/dates');
 
+const PRIORITY_CELLS = new Map([
+  ['LINEA VERSON', 0],
+  ['LINEA SCHULER', 1]
+]);
+
 function formatTime(value) {
   if (typeof value === 'string') return value;
   return String(value).slice(0, 8);
@@ -28,6 +33,18 @@ function emptyHours() {
       ])
     )
   );
+}
+
+function compareProductionRows(a, b) {
+  const cellA = String(a.celda || '').trim().toUpperCase();
+  const cellB = String(b.celda || '').trim().toUpperCase();
+  const priorityA = PRIORITY_CELLS.get(cellA) ?? Number.MAX_SAFE_INTEGER;
+  const priorityB = PRIORITY_CELLS.get(cellB) ?? Number.MAX_SAFE_INTEGER;
+
+  if (priorityA !== priorityB) return priorityA - priorityB;
+
+  const byCell = a.celda.localeCompare(b.celda, 'es', { numeric: true });
+  return byCell || a.pieza.localeCompare(b.pieza, 'es', { numeric: true });
 }
 
 function buildMatrix(rows, options = {}) {
@@ -72,10 +89,7 @@ function buildMatrix(rows, options = {}) {
     item.total += amount;
   }
 
-  return Array.from(map.values()).sort((a, b) => {
-    const byCell = a.celda.localeCompare(b.celda, 'es', { numeric: true });
-    return byCell || a.pieza.localeCompare(b.pieza, 'es', { numeric: true });
-  });
+  return Array.from(map.values()).sort(compareProductionRows);
 }
 
 async function getProductionRows(fecha) {
@@ -214,6 +228,7 @@ async function getCatalogs() {
 
 module.exports = {
   buildMatrix,
+  compareProductionRows,
   getDashboard,
   getShift,
   getCatalogs
