@@ -10,6 +10,14 @@ Solo contiene trabajo abierto. Las decisiones cerradas pertenecen a `docs/CHANGE
 - **Siguiente paso:** comparar LKN y CSV cerrado en el proximo cruce, verificando los tags `[0]` del endpoint global si hubiera diferencias.
 - **Criterio de cierre:** las piezas activas coinciden y no se observan valores tomados de `[24]`.
 
+## P0 - Activar monitor LKN en el servidor web
+
+- **Problema:** el commit `66c77bd` esta pusheado, pero el servidor productivo todavia responde 404 en `/api/lkn-health`; el repositorio no controla su pull/reinicio externo.
+- **Impacto:** la adquisicion y la proteccion `empty-source` funcionan, pero Produccion aun no emite las nuevas alertas internas de atraso y cobertura.
+- **Evidencia:** validacion Test aprobada y verificacion HTTP productiva posterior al push.
+- **Siguiente paso:** el deployer debe obtener `66c77bd`, configurar `APP_RELEASE`, construir y reiniciar el backend; luego ejecutar `scripts/verify-web-deployment.js`.
+- **Criterio de cierre:** `/api/lkn-health` responde sin nivel `critical` y `/api/health.release` identifica el commit desplegado.
+
 ## P1 - Definir retencion
 
 - **Problema:** staging, diagnosticos y respaldos no tienen plazo documentado.

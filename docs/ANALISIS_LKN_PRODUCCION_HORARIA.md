@@ -51,7 +51,7 @@ El estado vigente es:
 
 La comparacion posterior incluyo 62 maquinas y 310 bloques cerrados disponibles: no se encontraron diferencias entre CSV vivo y staging productivo. Falta validar el primer cruce productivo real `00-01` de CELDA_7. Los huecos 2026-10-10 a 2026-10-14 se declararon no recuperables porque no existe una fuente cerrada confiable; no se fabricaran datos.
 
-La proteccion del importador ante una fuente vacia esta implementada y probada en el repo, pero requiere desplegar y reiniciar el backend web para considerarse activa en el proceso productivo.
+La proteccion del importador ante una fuente vacia se valido tambien en la API productiva con una fecha futura inocua: respondio `reason=empty-source`, `preservedExistingData=true` y no altero el destino. El nuevo monitor `/api/lkn-health` pertenece al commit `66c77bd` y requiere todavia que el deployer actualice y reinicie el proceso web.
 
 ## Validacion previa en Test del 2026-10-15
 

@@ -1,5 +1,17 @@
 # DEPLOY_LOG - FP_Soldadura
 
+## 2026-10-22 - Publicacion del commit de controles LKN
+
+- Commit `66c77bd` (`corregir celda 7 y agregar controles lkn`) pusheado a `origin/main`.
+- Node-RED productivo permanece idempotente: dry-run `operation=no-op`, huella `a5f4eb404466f39bf79aaa9b74fb0c80c5516758d449f979cd509217221f1a35`, endpoint CELDA_7 unico y cinco tags `HORA[0]`.
+- Comparacion productiva posterior a la ventana de cierre `10-11`:
+  - 310 de 310 bloques cerrados exactos contra el CSV vivo;
+  - total 7056 en CSV, Test y Produccion;
+  - cero diferencias y cero filas faltantes.
+- Proteccion productiva ante fuente vacia validada con `2099-01-01`: HTTP 200, `reason=empty-source`, `preservedExistingData=true` y conteo destino 0 antes/despues.
+- Scheduler productivo vigente: fuente `lkn`, 62 maquinas, sin `lastError`.
+- El proceso web no se redesplego automaticamente despues del push: `/api/lkn-health` continua en HTTP 404. El monitor queda pendiente de pull/reinicio por el deployer; no se declara activo en Produccion todavia.
+
 ## 2026-10-22 - Validacion Test de controles operativos
 
 - Backend local ejecutado contra `ferrosider_produccion_soldadura_test`, fuente `lkn` y puerto 3002.
