@@ -54,6 +54,17 @@ const SHIFTS = [
 
 const STANDARD_PIECES_PER_HOUR = 24;
 
+function standardPiecesPerHour(productionLine = '') {
+  const line = String(productionLine).trim().toUpperCase();
+
+  if (line.includes('SCHULER')) return 450;
+  if (line.includes('VERSON')) return 300;
+  if (line === 'CELDA_8') return 28;
+  if (line.startsWith('MIG_1') || line.startsWith('MIG_4')) return 30;
+
+  return STANDARD_PIECES_PER_HOUR;
+}
+
 function hourLabel(hourRange) {
   return `${hourRange[0].slice(0, 2)}-${hourRange[1].slice(0, 2)}`;
 }
@@ -86,5 +97,6 @@ module.exports = {
   SHIFTS,
   STANDARD_PIECES_PER_HOUR,
   hourLabel,
-  productionStatus
+  productionStatus,
+  standardPiecesPerHour
 };

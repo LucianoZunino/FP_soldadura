@@ -1,5 +1,13 @@
 # DEPLOY_LOG - FP_Soldadura
 
+## 2026-10-26 - Estandares horarios por maquina
+
+- Cambio preparado para Test y Produccion: `CELDA_8=28`, `MIG_1=30`, `MIG_4=30`, `Schuler=450` y `Verson=300` pzas/h; el resto conserva 24 pzas/h.
+- Las reglas contemplan los nombres operativos y los aliases de catalogo de Schuler y Verson.
+- Se actualiza el valor expuesto por la API, la grilla y las exportaciones CSV, sin modificar datos productivos ni la logica de colores.
+- No requiere migracion de base ni cambios de variables de entorno.
+- Archivos involucrados: `backend/src/constants/production.js`, `backend/src/services/productionService.js`, `backend/test/productionService.test.js`, `docs/CHANGELOG.md` y `docs/DEPLOY_LOG.md`.
+
 ## 2026-10-22 - Simplificacion de acciones del Dashboard
 
 - Cambio preparado para Test y Produccion: se ocultan las acciones manuales `Actualizar vivo` e `Importar articulos`.

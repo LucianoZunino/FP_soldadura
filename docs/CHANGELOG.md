@@ -1,5 +1,11 @@
 # CHANGELOG - FP_Soldadura
 
+## 2026-10-26
+
+- Se configuran estandares horarios por maquina: `CELDA_8` 28 pzas/h, `MIG_1` y `MIG_4` 30 pzas/h, Schuler 450 pzas/h y Verson 300 pzas/h.
+- Las demas maquinas conservan el estandar general de 24 pzas/h.
+- El cambio actualiza el valor informado en grillas y exportaciones; no modifica todavia la logica de colores ni incorpora el objetivo proporcional dentro de la hora activa.
+
 ## 2026-10-22
 
 - Se retiran del Dashboard los botones manuales `Actualizar vivo` e `Importar articulos`; el refresco automatico y el scheduler LKN siguen activos, y los endpoints operativos se conservan.
