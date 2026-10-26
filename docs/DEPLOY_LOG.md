@@ -1,5 +1,14 @@
 # DEPLOY_LOG - FP_Soldadura
 
+## 2026-10-26 - Estado proporcional de la hora activa
+
+- Cambio preparado para Test y Produccion: el objetivo de la hora activa se prorratea por los segundos transcurridos y se recalcula con cada consulta del Dashboard.
+- Umbrales confirmados: verde oscuro `>=120%`, verde `>=100%`, amarillo `>=80%`, rojo `<80%`; el cero activo o cerrado queda rojo y las horas futuras permanecen grises.
+- Las horas cerradas usan el estandar completo de cada maquina, incluido el cruce operativo `00-06` del Turno 3.
+- La API expone `expectedQuantity` por bloque y la interfaz lo muestra como ayuda contextual.
+- No modifica cantidades productivas, sincronizacion LKN, Node-RED ni estructura de base de datos.
+- Archivos involucrados: `backend/src/utils/dates.js`, `backend/src/constants/production.js`, `backend/src/services/productionService.js`, `backend/test/dates.test.js`, `backend/test/productionService.test.js`, `frontend/src/main.jsx`, `docs/CHANGELOG.md` y `docs/DEPLOY_LOG.md`.
+
 ## 2026-10-26 - Estandares horarios por maquina
 
 - Cambio preparado para Test y Produccion: `CELDA_8=28`, `MIG_1=30`, `MIG_4=30`, `Schuler=450` y `Verson=300` pzas/h; el resto conserva 24 pzas/h.

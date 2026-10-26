@@ -58,3 +58,60 @@ test('ubica LINEA VERSON y LINEA SCHULER antes que el resto de las maquinas', ()
     ['LINEA VERSON', 'LINEA SCHULER', 'CELDA_1', 'CELDA_2', 'MIG_GOR']
   );
 });
+
+test('evalua la hora activa contra el estandar proporcional transcurrido', () => {
+  const baseRow = {
+    id_celda: 1,
+    celda: 'CELDA_1',
+    id_turno: 1,
+    hora_desde: '09:00:00',
+    hora_hasta: '10:00:00',
+    articulos_finales: 'SUBPROCESO',
+    cantidad_articulos_finales: 0
+  };
+  const matrix = buildMatrix([
+    { ...baseRow, id_pieza: 1, pieza: 'MUY ALTA', cantidad: 15 },
+    { ...baseRow, id_pieza: 2, pieza: 'EN OBJETIVO', cantidad: 12 },
+    { ...baseRow, id_pieza: 3, pieza: 'ATENCION', cantidad: 10 },
+    { ...baseRow, id_pieza: 4, pieza: 'BAJA', cantidad: 9 }
+  ], {
+    fecha: '2026-09-02',
+    hideFutureHours: true,
+    now: new Date('2026-09-02T12:30:00.000Z')
+  });
+  const hours = Object.fromEntries(
+    matrix.map((row) => [row.pieza, row.hours['1:09:00:00']])
+  );
+
+  assert.equal(hours['MUY ALTA'].expectedQuantity, 12);
+  assert.equal(hours['MUY ALTA'].status, 'veryHigh');
+  assert.equal(hours['EN OBJETIVO'].status, 'high');
+  assert.equal(hours.ATENCION.status, 'medium');
+  assert.equal(hours.BAJA.status, 'low');
+});
+
+test('usa el estandar completo en horas cerradas y deja futuras en gris', () => {
+  const baseRow = {
+    id_celda: 1,
+    celda: 'CELDA_1',
+    id_turno: 1,
+    hora_hasta: '10:00:00',
+    articulos_finales: 'SUBPROCESO',
+    cantidad_articulos_finales: 0
+  };
+  const matrix = buildMatrix([
+    { ...baseRow, id_pieza: 1, pieza: 'CERRADA', hora_desde: '08:00:00', cantidad: 24 },
+    { ...baseRow, id_pieza: 2, pieza: 'FUTURA', hora_desde: '10:00:00', hora_hasta: '11:00:00', cantidad: 24 }
+  ], {
+    fecha: '2026-09-02',
+    hideFutureHours: true,
+    now: new Date('2026-09-02T12:30:00.000Z')
+  });
+  const rows = Object.fromEntries(matrix.map((row) => [row.pieza, row]));
+
+  assert.equal(rows.CERRADA.hours['1:08:00:00'].expectedQuantity, 24);
+  assert.equal(rows.CERRADA.hours['1:08:00:00'].status, 'high');
+  assert.equal(rows.FUTURA.hours['1:10:00:00'].expectedQuantity, 0);
+  assert.equal(rows.FUTURA.hours['1:10:00:00'].cantidad, 0);
+  assert.equal(rows.FUTURA.hours['1:10:00:00'].status, 'empty');
+});

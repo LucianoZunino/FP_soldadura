@@ -67,12 +67,35 @@ function timeToMinutes(value) {
   return (hours * 60) + (minutes || 0);
 }
 
+function operationalTimeToSeconds(value) {
+  const [hours, minutes, seconds] = String(value).split(':').map(Number);
+  const calendarSeconds = (hours * 60 * 60) + ((minutes || 0) * 60) + (seconds || 0);
+
+  return hours < 6 ? calendarSeconds + (24 * 60 * 60) : calendarSeconds;
+}
+
+function hourProgressForDate(fecha, horaDesde, now = new Date()) {
+  const operationalDate = normalizeDate(fecha);
+  const currentDate = currentOperationalDate(now);
+
+  if (operationalDate < currentDate) return 1;
+  if (operationalDate > currentDate) return 0;
+
+  const elapsedSeconds = operationalTimeToSeconds(currentTimeString(now))
+    - operationalTimeToSeconds(horaDesde);
+
+  if (elapsedSeconds <= 0) return 0;
+  if (elapsedSeconds >= 60 * 60) return 1;
+
+  return elapsedSeconds / (60 * 60);
+}
+
 function isFutureHourForDate(fecha, horaDesde, now = new Date()) {
   const operationalDate = normalizeDate(fecha);
+  const currentDate = currentOperationalDate(now);
 
-  if (operationalDate !== currentOperationalDate(now)) {
-    return false;
-  }
+  if (operationalDate < currentDate) return false;
+  if (operationalDate > currentDate) return true;
 
   const calendarDate = timeToMinutes(horaDesde) < 360
     ? nextIsoDate(operationalDate)
@@ -100,6 +123,7 @@ module.exports = {
   addDaysIsoDate,
   currentOperationalDate,
   currentTimeString,
+  hourProgressForDate,
   isFutureHourForDate,
   nextIsoDate,
   normalizeDate,

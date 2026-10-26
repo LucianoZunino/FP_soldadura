@@ -4,7 +4,8 @@
 
 - Se configuran estandares horarios por maquina: `CELDA_8` 28 pzas/h, `MIG_1` y `MIG_4` 30 pzas/h, Schuler 450 pzas/h y Verson 300 pzas/h.
 - Las demas maquinas conservan el estandar general de 24 pzas/h.
-- El cambio actualiza el valor informado en grillas y exportaciones; no modifica todavia la logica de colores ni incorpora el objetivo proporcional dentro de la hora activa.
+- La hora activa calcula su objetivo proporcional con los segundos transcurridos y actualiza el color en cada refresco: verde oscuro desde 120%, verde desde 100%, amarillo desde 80% y rojo por debajo de 80%.
+- Las horas cerradas se evaluan contra el estandar completo y las futuras permanecen grises; cada celda informa su objetivo acumulado al pasar el cursor.
 
 ## 2026-10-22
 

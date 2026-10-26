@@ -5,7 +5,7 @@ const {
   productionStatus,
   standardPiecesPerHour
 } = require('../constants/production');
-const { isFutureHourForDate, normalizeDate } = require('../utils/dates');
+const { hourProgressForDate, isFutureHourForDate, normalizeDate } = require('../utils/dates');
 
 const PRIORITY_CELLS = new Map([
   ['LINEA VERSON', 0],
@@ -72,9 +72,14 @@ function buildMatrix(rows, options = {}) {
     const item = map.get(key);
     const horaDesde = formatTime(row.hora_desde);
     const horaHasta = formatTime(row.hora_hasta);
-    const futureHour = options.hideFutureHours && isFutureHourForDate(options.fecha, horaDesde);
+    const futureHour = options.hideFutureHours
+      && isFutureHourForDate(options.fecha, horaDesde, options.now);
     const amount = futureHour ? 0 : Number(row.cantidad || 0);
     const hourKey = `${row.id_turno}:${horaDesde}`;
+    const progress = options.fecha
+      ? hourProgressForDate(options.fecha, horaDesde, options.now)
+      : 1;
+    const expectedQuantity = item.standardPiecesPerHour * progress;
 
     item.hours[hourKey] = {
       idTurno: row.id_turno,
@@ -82,7 +87,8 @@ function buildMatrix(rows, options = {}) {
       horaDesde,
       horaHasta,
       cantidad: amount,
-      status: futureHour ? 'empty' : productionStatus(amount, row.celda)
+      expectedQuantity: Number(expectedQuantity.toFixed(1)),
+      status: futureHour ? 'empty' : productionStatus(amount, expectedQuantity)
     };
 
     item.totalsByShift[row.id_turno] += amount;

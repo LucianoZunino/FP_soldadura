@@ -179,17 +179,21 @@ function StatCard({ icon: Icon, label, value }) {
 function Legend() {
   return (
     <div className="legend">
-      <span><i className="swatch veryHigh" />Produccion muy alta</span>
-      <span><i className="swatch high" />Produccion alta</span>
-      <span><i className="swatch medium" />Produccion media</span>
-      <span><i className="swatch low" />Produccion baja</span>
-      <span><i className="swatch empty" />Sin datos</span>
+      <span><i className="swatch veryHigh" />Muy alta (&gt;= 120%)</span>
+      <span><i className="swatch high" />En objetivo (&gt;= 100%)</span>
+      <span><i className="swatch medium" />Atencion (80-99%)</span>
+      <span><i className="swatch low" />Baja (&lt; 80%)</span>
+      <span><i className="swatch empty" />Hora futura / sin datos</span>
     </div>
   );
 }
 
 function CellValue({ hour }) {
-  return <td className={`heat ${hour?.status || 'empty'}`}>{hour?.cantidad ?? 0}</td>;
+  const title = hour?.expectedQuantity === undefined
+    ? undefined
+    : `Objetivo acumulado: ${hour.expectedQuantity} pzas`;
+
+  return <td className={`heat ${hour?.status || 'empty'}`} title={title}>{hour?.cantidad ?? 0}</td>;
 }
 
 function HeaderTitle({ title, subtitle, sidebarCollapsed, onToggleSidebar }) {

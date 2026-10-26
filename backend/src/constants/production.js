@@ -69,27 +69,17 @@ function hourLabel(hourRange) {
   return `${hourRange[0].slice(0, 2)}-${hourRange[1].slice(0, 2)}`;
 }
 
-function productionStatus(value, productionLine = '') {
-  const amount = Number(value);
-  const line = String(productionLine).toUpperCase();
+function productionStatus(value, expectedAmount = STANDARD_PIECES_PER_HOUR) {
+  const amount = Math.max(Number(value) || 0, 0);
+  const target = Math.max(Number(expectedAmount) || 0, 0);
 
-  if (line.includes('SCHULER')) {
-    if (amount >= 450) return 'veryHigh';
-    if (amount >= 300) return 'high';
-    if (amount >= 180) return 'medium';
-    return 'low';
-  }
+  if (target === 0) return amount > 0 ? 'veryHigh' : 'low';
 
-  if (line.includes('VERSON')) {
-    if (amount >= 300) return 'veryHigh';
-    if (amount >= 200) return 'high';
-    if (amount >= 120) return 'medium';
-    return 'low';
-  }
+  const performance = amount / target;
 
-  if (!amount) return 'empty';
-  if (value >= 20) return 'high';
-  if (value >= 15) return 'medium';
+  if (performance >= 1.2) return 'veryHigh';
+  if (performance >= 1) return 'high';
+  if (performance >= 0.8) return 'medium';
   return 'low';
 }
 
